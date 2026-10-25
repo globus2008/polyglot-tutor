@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isLocale, LOCALE_COOKIE, localePath, matchLocale } from "@/lib/i18n/locales";
 
 // Pages under /[lang] that work without signing in.
-const PUBLIC_PAGES = ["/login"];
+const PUBLIC_PAGES = ["/login", "/privacy"];
 
 // 1. Bare URLs get a locale prefix (remembered cookie, else the browser's languages).
 // 2. The Supabase session cookie is refreshed.
@@ -65,5 +65,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|manifest.webmanifest|sw.js|offline.html|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+  ],
 };

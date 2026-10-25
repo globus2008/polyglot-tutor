@@ -590,7 +590,7 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
 
       {phase === "live" && (
         <div className="fixed inset-x-0 bottom-0 border-t border-line bg-surface/95 backdrop-blur">
-          <div className="mx-auto w-full max-w-3xl space-y-3 px-4 py-3">
+          <div className="mx-auto w-full max-w-3xl space-y-3 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
             <div className="flex items-center gap-2 text-sm" aria-live="polite">
               <span
                 className={`size-2.5 rounded-full ${

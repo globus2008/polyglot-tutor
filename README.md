@@ -15,7 +15,7 @@ Each user brings their own OpenAI API key; a family can share one key.
 | 3. Memory – lesson analysis, mistakes, vocabulary, topic planner | ✅ |
 | 4. Review & progress – spaced repetition, dashboard | ✅ |
 | 5. Households – invites, shared key, per-member limits | ✅ |
-| 6. PWA & deployment | ⏳ |
+| 6. PWA & deployment | ✅ |
 
 ## Localisation
 
@@ -70,4 +70,10 @@ Magic-link emails are caught locally by Mailpit at http://127.0.0.1:54324.
 
 ## Deployment
 
-The code is hosted on GitHub; the app runs on [Vercel](https://vercel.com) (imports the GitHub repo and redeploys on every push) with a [Supabase](https://supabase.com) cloud project. Both free tiers are enough for personal and family use. Step-by-step instructions will follow in phase 6.
+The code is hosted on GitHub; the app runs on [Vercel](https://vercel.com) (imports the GitHub repo and redeploys on every push) with a [Supabase](https://supabase.com) cloud project. Both free tiers are enough for personal and family use. Vercel Cron calls `/api/cron/keepalive` daily (`vercel.json`, authorised by `CRON_SECRET`) so the free Supabase project is never paused for inactivity.
+
+Production environment variables: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `KEY_ENCRYPTION_SECRET`, `CRON_SECRET`, `NEXT_PUBLIC_CONTACT_EMAIL`. Database changes: `supabase db push`; auth settings and email templates: `supabase config push` (see `[remotes.production]` in `supabase/config.toml`). Sign-in emails need custom SMTP in the Supabase dashboard.
+
+## PWA
+
+`app/manifest.ts`, icons in `public/icons` and a small service worker (`public/sw.js`) that only shows `offline.html` when there is no connection. The app can be installed from Settings → Install on your phone.

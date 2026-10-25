@@ -119,6 +119,9 @@ export const en = {
     codeDigits: "The code is the digits from the email.",
     codeWrong: "The code doesn't match or has expired.",
     otherEmail: "Different email / send again",
+    privacyBefore: "By signing in you agree to how we handle your data – see the ",
+    privacyLink: "privacy policy",
+    privacyAfter: ".",
   },
   onboarding: {
     title: "What do you want to learn?",
@@ -370,6 +373,83 @@ export const en = {
     joining: "Joining…",
     alreadyMember: "You are already a member of another family. Leave it first on the Family page.",
     invalid: "The invite is invalid or has expired. Ask for a new one.",
+  },
+  footer: { privacy: "Privacy policy", contact: "Contact" },
+  account: {
+    title: "Your data",
+    intro: "Download everything the app stores about you, or delete your account.",
+    export: "Download my data (JSON)",
+    delete: "Delete account",
+    deleting: "Deleting…",
+    deleteConfirm:
+      "Really delete your account? All lessons, mistakes, words and your API key are deleted permanently. If you manage a family, the family and its key are deleted too.",
+  },
+  install: {
+    title: "Install on your phone",
+    installed: "The app is installed on this device.",
+    button: "Install app",
+    ios: "On iPhone or iPad: open the app in Safari, tap Share (the square with an arrow) and choose “Add to Home Screen”.",
+    android: "On Android: open the browser menu (⋮) and choose “Install app” or “Add to Home screen”.",
+    note: "The installed app opens without the browser bar. You sign in again once inside it – the email code works best.",
+  },
+  privacy: {
+    title: "Privacy policy",
+    updated: "Last updated: 25 October 2026",
+    controller: (email: string | null) =>
+      email
+        ? `Polyglot Tutor is a hobby project. The data controller is the operator of Polyglot Tutor, reachable at ${email}.`
+        : "Polyglot Tutor is a hobby project. The data controller is the operator of Polyglot Tutor.",
+    sections: [
+      {
+        heading: "What we store",
+        body: [
+          "Your email address, used to sign you in.",
+          "Your learner profiles: languages, level, interests, goals and conversation settings.",
+          "Lesson records: transcripts of your conversations, corrections, the tutor's feedback, mistakes and vocabulary for review.",
+          "Usage minutes, to show your progress and to enforce family limits.",
+          "Your OpenAI API key, encrypted (AES-256-GCM). It is never sent back to the browser.",
+          "Family membership and invites, if you use the family feature.",
+        ],
+      },
+      {
+        heading: "Why",
+        body: [
+          "To provide the service you signed up for – planning lessons, remembering your progress and running voice lessons (GDPR Art. 6(1)(b)).",
+          "To keep the service secure and prevent abuse (legitimate interest, Art. 6(1)(f)).",
+          "There are no ads, no analytics or tracking, and your data is never sold.",
+        ],
+      },
+      {
+        heading: "Who processes it",
+        body: [
+          "Supabase – database and sign-in, hosted in the EU (Frankfurt).",
+          "Vercel – hosting of the web application; requests may be processed outside the EU under standard contractual clauses.",
+          "OpenAI – voice lessons and lesson analysis. Your microphone audio goes directly from your browser to OpenAI, billed to your own (or your family's) API key. Under OpenAI's API terms this data is not used for training by default and may be kept for up to 30 days for abuse monitoring.",
+          "Seznam.cz – delivery of sign-in emails.",
+        ],
+      },
+      {
+        heading: "Families",
+        body: [
+          "The family admin sees members' email addresses and how many minutes they spent on the family key. Your lessons, mistakes and words stay private.",
+          "Children under 16 may use the app only with the consent of a parent, typically as members of a family the parent manages.",
+        ],
+      },
+      {
+        heading: "Cookies and local storage",
+        body: [
+          "A sign-in cookie keeps you logged in and a language cookie remembers your UI language. Both are strictly necessary.",
+          "Your browser remembers your chosen microphone and voice quality locally; this never leaves your device.",
+        ],
+      },
+      {
+        heading: "How long and your rights",
+        body: [
+          "Data is kept until you delete your account. Deleting it (Settings → Your data) removes everything immediately; copies in providers' backups expire after a short period.",
+          "You can download all your data in Settings at any time. You also have the right to rectification, restriction and objection, and to lodge a complaint with a supervisory authority (in the Czech Republic the Office for Personal Data Protection, uoou.cz).",
+        ],
+      },
+    ],
   },
   errors: {
     notSignedIn: "You are not signed in.",

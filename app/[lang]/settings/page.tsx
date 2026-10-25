@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { ApiKeyForm } from "@/components/api-key-form";
+import { InstallApp } from "@/components/install-app";
 import { SubmitButton } from "@/components/submit-button";
 import { buttonClass, Card } from "@/components/ui";
 import { getKeyInfo, resolveOpenAIKey } from "@/lib/api-keys";
@@ -10,7 +11,7 @@ import { INTL_LOCALE, localePath } from "@/lib/i18n";
 import { getDictionary, getLocale } from "@/lib/i18n/server";
 import { isLanguage, LANGUAGE_CODES, LANGUAGES } from "@/lib/languages";
 import { createClient } from "@/lib/supabase/server";
-import { removeApiKey, saveApiKey } from "./actions";
+import { deleteAccount, removeApiKey, saveApiKey } from "./actions";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getDictionary()).meta.settings };
@@ -106,6 +107,24 @@ async function SettingsContent() {
             {t.settings.addLanguage}
           </Link>
         )}
+      </Card>
+
+      <Card title={t.install.title}>
+        <InstallApp />
+      </Card>
+
+      <Card title={t.account.title}>
+        <p className="mb-4 text-sm text-muted-foreground">{t.account.intro}</p>
+        <div className="flex flex-wrap gap-3">
+          <a href="/api/account/export" download className={buttonClass("secondary")}>
+            {t.account.export}
+          </a>
+          <form action={deleteAccount}>
+            <SubmitButton variant="danger" pendingText={t.account.deleting} confirmText={t.account.deleteConfirm}>
+              {t.account.delete}
+            </SubmitButton>
+          </form>
+        </div>
       </Card>
 
       <p className="text-sm text-muted-foreground">{t.settings.signedInAs(user.email)}</p>

@@ -121,6 +121,9 @@ export const cs: Dictionary = {
     codeDigits: "Kód má jen číslice z e-mailu.",
     codeWrong: "Kód nesouhlasí nebo vypršel.",
     otherEmail: "Jiný e-mail / poslat znovu",
+    privacyBefore: "Přihlášením berete na vědomí, jak zacházíme s vašimi daty – viz ",
+    privacyLink: "zásady ochrany osobních údajů",
+    privacyAfter: ".",
   },
   onboarding: {
     title: "Co se chcete učit?",
@@ -372,6 +375,83 @@ export const cs: Dictionary = {
     joining: "Připojuji…",
     alreadyMember: "Už jste členem jiné rodiny. Nejdřív ji opusťte na stránce Rodina.",
     invalid: "Pozvánka je neplatná nebo vypršela. Požádejte o novou.",
+  },
+  footer: { privacy: "Ochrana osobních údajů", contact: "Kontakt" },
+  account: {
+    title: "Vaše data",
+    intro: "Stáhněte si vše, co o vás aplikace ukládá, nebo svůj účet smažte.",
+    export: "Stáhnout moje data (JSON)",
+    delete: "Smazat účet",
+    deleting: "Mažu…",
+    deleteConfirm:
+      "Opravdu smazat účet? Všechny lekce, chyby, slovíčka i API klíč se nevratně smažou. Pokud spravujete rodinu, smaže se i rodina a její klíč.",
+  },
+  install: {
+    title: "Instalace do telefonu",
+    installed: "Aplikace je na tomto zařízení nainstalovaná.",
+    button: "Nainstalovat aplikaci",
+    ios: "Na iPhonu nebo iPadu: otevřete aplikaci v Safari, klepněte na Sdílet (čtverec se šipkou) a zvolte „Přidat na plochu“.",
+    android: "Na Androidu: otevřete nabídku prohlížeče (⋮) a zvolte „Instalovat aplikaci“ nebo „Přidat na plochu“.",
+    note: "Nainstalovaná aplikace se otevírá bez lišty prohlížeče. Uvnitř se jednou znovu přihlásíte – nejlépe kódem z e-mailu.",
+  },
+  privacy: {
+    title: "Zásady ochrany osobních údajů",
+    updated: "Naposledy aktualizováno: 25. října 2026",
+    controller: (email) =>
+      email
+        ? `Polyglot Tutor je hobby projekt. Správcem osobních údajů je provozovatel aplikace Polyglot Tutor, kontakt: ${email}.`
+        : "Polyglot Tutor je hobby projekt. Správcem osobních údajů je provozovatel aplikace Polyglot Tutor.",
+    sections: [
+      {
+        heading: "Co ukládáme",
+        body: [
+          "Vaši e-mailovou adresu, kterou se přihlašujete.",
+          "Vaše jazykové profily: jazyky, úroveň, zájmy, cíle a nastavení konverzace.",
+          "Záznamy lekcí: přepisy rozhovorů, opravy, hodnocení lektora, chyby a slovíčka k opakování.",
+          "Odučené minuty – pro přehled pokroku a hlídání limitů v rodině.",
+          "Váš OpenAI API klíč, šifrovaně (AES-256-GCM). Do prohlížeče se nikdy nevrací.",
+          "Členství v rodině a pozvánky, pokud rodinu používáte.",
+        ],
+      },
+      {
+        heading: "Proč",
+        body: [
+          "Abychom mohli poskytovat službu, kterou používáte – plánovat lekce, pamatovat si váš pokrok a vést hlasové lekce (čl. 6 odst. 1 písm. b) GDPR).",
+          "Kvůli bezpečnosti a ochraně před zneužitím (oprávněný zájem, čl. 6 odst. 1 písm. f)).",
+          "Nejsou tu žádné reklamy, analytika ani sledování a vaše data nikomu neprodáváme.",
+        ],
+      },
+      {
+        heading: "Kdo data zpracovává",
+        body: [
+          "Supabase – databáze a přihlašování, servery v EU (Frankfurt).",
+          "Vercel – hosting webové aplikace; požadavky mohou být zpracovány i mimo EU na základě standardních smluvních doložek.",
+          "OpenAI – hlasové lekce a vyhodnocení lekcí. Zvuk z mikrofonu jde přímo z vašeho prohlížeče do OpenAI a účtuje se na váš (nebo rodinný) API klíč. Podle podmínek OpenAI API se tato data ve výchozím stavu nepoužívají k trénování a mohou být uchována nejvýše 30 dní kvůli odhalování zneužití.",
+          "Seznam.cz – doručování přihlašovacích e-mailů.",
+        ],
+      },
+      {
+        heading: "Rodina",
+        body: [
+          "Správce rodiny vidí e-maily členů a kolik minut strávili na rodinném klíči. Vaše lekce, chyby a slovíčka zůstávají soukromé.",
+          "Děti mladší 16 let mohou aplikaci používat jen se souhlasem rodiče, typicky jako členové rodiny, kterou rodič spravuje.",
+        ],
+      },
+      {
+        heading: "Cookies a úložiště prohlížeče",
+        body: [
+          "Přihlašovací cookie vás udržuje přihlášené a jazyková cookie si pamatuje jazyk rozhraní. Obě jsou nezbytné pro fungování.",
+          "Prohlížeč si u vás lokálně pamatuje zvolený mikrofon a kvalitu hlasu; tyto údaje vaše zařízení neopouštějí.",
+        ],
+      },
+      {
+        heading: "Jak dlouho a vaše práva",
+        body: [
+          "Data uchováváme, dokud účet nesmažete. Smazání (Nastavení → Vaše data) odstraní vše okamžitě; kopie v zálohách poskytovatelů po krátké době zaniknou.",
+          "Všechna svá data si můžete kdykoli stáhnout v Nastavení. Máte také právo na opravu, omezení zpracování a vznesení námitky a právo podat stížnost u dozorového úřadu (v ČR Úřad pro ochranu osobních údajů, uoou.cz).",
+        ],
+      },
+    ],
   },
   errors: {
     notSignedIn: "Nejste přihlášeni.",
