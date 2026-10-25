@@ -173,6 +173,7 @@ export const cs: Dictionary = {
     nativeTitle: "Mateřský jazyk",
     nativeIntro: "V tomto jazyce vám lektor vysvětluje opravy a v něm dostáváte překlady slovíček a hodnocení lekcí.",
     nativeSaved: "Uloženo",
+    nativeUiNote: "Rozhraní aplikace je zatím jen v angličtině a češtině; lektor, překlady a hodnocení použijí zvolený jazyk.",
     profiles: "Jazykové profily",
     edit: "Upravit",
     addLanguage: "Přidat jazyk",

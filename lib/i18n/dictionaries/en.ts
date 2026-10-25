@@ -171,6 +171,7 @@ export const en = {
     nativeTitle: "Native language",
     nativeIntro: "The tutor explains corrections in this language, and word translations and lesson feedback use it too.",
     nativeSaved: "Saved",
+    nativeUiNote: "The app interface is only in English and Czech for now; the tutor, translations and feedback use the chosen language.",
     profiles: "Language profiles",
     edit: "Edit",
     addLanguage: "Add language",

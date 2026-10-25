@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { checkNewKey, deleteKey, saveKey } from "@/lib/api-keys";
 import { getCurrentUser } from "@/lib/auth";
-import { localePath } from "@/lib/i18n";
+import { isLocale, localePath } from "@/lib/i18n";
 import { getRequestDictionary, getRequestLocale } from "@/lib/i18n/server";
 import { isNativeLanguage } from "@/lib/languages";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
@@ -31,7 +31,7 @@ export async function removeApiKey() {
 export type NativeState = { status: "idle" | "saved" | "error"; message?: string };
 
 export async function saveNativeLanguage(_prev: NativeState, formData: FormData): Promise<NativeState> {
-  const [user, t] = await Promise.all([getCurrentUser(), getRequestDictionary()]);
+  const [user, t, locale] = await Promise.all([getCurrentUser(), getRequestDictionary(), getRequestLocale()]);
   const nativeLang = formData.get("native_lang");
   if (!isNativeLanguage(nativeLang)) return { status: "error", message: t.onboarding.invalid };
 
@@ -39,6 +39,8 @@ export async function saveNativeLanguage(_prev: NativeState, formData: FormData)
   const { error } = await supabase.from("user_settings").upsert({ user_id: user.id, native_lang: nativeLang });
   if (error) return { status: "error", message: t.onboarding.saveFailed };
   revalidatePath("/[lang]/settings", "page");
+  // the UI follows the native language where a translation exists
+  if (isLocale(nativeLang) && nativeLang !== locale) redirect(localePath(nativeLang, "/settings"));
   return { status: "saved", message: t.settings.nativeSaved };
 }
 

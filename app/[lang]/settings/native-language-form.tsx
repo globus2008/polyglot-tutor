@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { SubmitButton } from "@/components/submit-button";
 import { FormMessage, inputClass } from "@/components/ui";
+import { isLocale } from "@/lib/i18n";
 import { useI18n } from "@/lib/i18n/client";
 import { NATIVE_LANGUAGE_CODES, type NativeLanguage } from "@/lib/languages";
 import { saveNativeLanguage, type NativeState } from "./actions";
@@ -33,6 +34,7 @@ export function NativeLanguageForm({ current }: { current: NativeLanguage }) {
         </select>
         <SubmitButton variant="secondary">{t.common.save}</SubmitButton>
       </div>
+      {!isLocale(value) && <p className="text-sm text-muted-foreground">{t.settings.nativeUiNote}</p>}
       <FormMessage status={state.status} message={state.message} />
     </form>
   );
