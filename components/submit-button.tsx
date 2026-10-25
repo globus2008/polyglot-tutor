@@ -2,6 +2,7 @@
 
 import type { ComponentProps } from "react";
 import { useFormStatus } from "react-dom";
+import { useI18n } from "@/lib/i18n/client";
 import { buttonClass, type ButtonVariant } from "./ui";
 
 export function SubmitButton({
@@ -14,6 +15,7 @@ export function SubmitButton({
   ...props
 }: ComponentProps<"button"> & { pendingText?: string; variant?: ButtonVariant; confirmText?: string }) {
   const { pending } = useFormStatus();
+  const { t } = useI18n();
   return (
     <button
       type="submit"
@@ -24,7 +26,7 @@ export function SubmitButton({
       }}
       {...props}
     >
-      {pending ? (pendingText ?? "Ukládám…") : children}
+      {pending ? (pendingText ?? t.common.saving) : children}
     </button>
   );
 }

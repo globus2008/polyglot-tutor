@@ -1,10 +1,13 @@
+// Languages the app teaches, and languages it can explain in. UI labels live in the
+// i18n dictionaries; English names here are for model instructions.
+
 export const LANGUAGES = {
-  es: { name: "Španělština", native: "Español", flag: "🇪🇸", speech: "es-ES", adverb: "španělsky" },
-  en: { name: "Angličtina", native: "English", flag: "🇬🇧", speech: "en-GB", adverb: "anglicky" },
-  de: { name: "Němčina", native: "Deutsch", flag: "🇩🇪", speech: "de-DE", adverb: "německy" },
-  it: { name: "Italština", native: "Italiano", flag: "🇮🇹", speech: "it-IT", adverb: "italsky" },
-  fr: { name: "Francouzština", native: "Français", flag: "🇫🇷", speech: "fr-FR", adverb: "francouzsky" },
-  ru: { name: "Ruština", native: "Русский", flag: "🇷🇺", speech: "ru-RU", adverb: "rusky" },
+  es: { english: "Spanish", flag: "🇪🇸", speech: "es-ES" },
+  en: { english: "English", flag: "🇬🇧", speech: "en-GB" },
+  de: { english: "German", flag: "🇩🇪", speech: "de-DE" },
+  it: { english: "Italian", flag: "🇮🇹", speech: "it-IT" },
+  fr: { english: "French", flag: "🇫🇷", speech: "fr-FR" },
+  ru: { english: "Russian", flag: "🇷🇺", speech: "ru-RU" },
 } as const;
 
 export type Language = keyof typeof LANGUAGES;
@@ -14,33 +17,45 @@ export function isLanguage(value: unknown): value is Language {
   return typeof value === "string" && value in LANGUAGES;
 }
 
-export const CEFR_LEVELS = {
-  A1: "Začátečník – pozdravím, představím se, objednám si",
-  A2: "Mírně pokročilý – zvládnu běžné situace jednoduchými větami",
-  B1: "Středně pokročilý – domluvím se na cestách, popíšu zážitky",
-  B2: "Pokročilý – plynule diskutuji o běžných i odborných tématech",
-  C1: "Velmi pokročilý – mluvím přirozeně a přesně, i o složitých věcech",
-  C2: "Téměř rodilý mluvčí",
+/** Languages explanations, translations and feedback can be given in. */
+export const NATIVE_LANGUAGES = {
+  cs: "Czech",
+  en: "English",
+  es: "Spanish",
+  de: "German",
+  it: "Italian",
+  fr: "French",
+  ru: "Russian",
 } as const;
 
-export type CefrLevel = keyof typeof CEFR_LEVELS;
-export const CEFR_CODES = Object.keys(CEFR_LEVELS) as CefrLevel[];
+export type NativeLanguage = keyof typeof NATIVE_LANGUAGES;
+export const NATIVE_LANGUAGE_CODES = Object.keys(NATIVE_LANGUAGES) as NativeLanguage[];
 
-export const INTEREST_OPTIONS = [
-  "cestování",
-  "jídlo a vaření",
+export function isNativeLanguage(value: unknown): value is NativeLanguage {
+  return typeof value === "string" && value in NATIVE_LANGUAGES;
+}
+
+export const CEFR_CODES = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
+export type CefrLevel = (typeof CEFR_CODES)[number];
+
+/** Interest keys; they double as topic tags so the planner can match them. */
+export const INTEREST_KEYS = [
+  "travel",
+  "food",
   "sport",
-  "práce a kariéra",
-  "technologie",
-  "filmy a seriály",
-  "hudba",
-  "knihy",
-  "příroda",
-  "zdraví",
-  "rodina a vztahy",
-  "historie a kultura",
-  "věda",
-  "politika a společnost",
-  "byznys a finance",
-  "hry",
+  "work",
+  "technology",
+  "films",
+  "music",
+  "books",
+  "nature",
+  "health",
+  "family",
+  "culture",
+  "science",
+  "society",
+  "business",
+  "games",
 ] as const;
+
+export type InterestKey = (typeof INTEREST_KEYS)[number];

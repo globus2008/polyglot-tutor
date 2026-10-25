@@ -1,12 +1,30 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isLocale, LOCALE_COOKIE, localePath, matchLocale } from "@/lib/i18n/locales";
 
-const PUBLIC_PATHS = ["/login", "/auth"];
+// Pages under /[lang] that work without signing in.
+const PUBLIC_PAGES = ["/login"];
 
-// Refreshes the Supabase session cookie and sends anonymous visitors to /login.
+// 1. Bare URLs get a locale prefix (remembered cookie, else the browser's languages).
+// 2. The Supabase session cookie is refreshed.
+// 3. Anonymous visitors of app pages go to /[lang]/login.
 export async function proxy(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  const { pathname, search } = request.nextUrl;
+  const isAppPage = !pathname.startsWith("/api/") && !pathname.startsWith("/auth/");
+  const segment = pathname.split("/")[1];
 
+  if (isAppPage && !isLocale(segment)) {
+    const remembered = request.cookies.get(LOCALE_COOKIE)?.value;
+    const locale = isLocale(remembered) ? remembered : matchLocale(request.headers.get("accept-language"));
+    const url = request.nextUrl.clone();
+    url.pathname = localePath(locale, pathname);
+    return NextResponse.redirect(url);
+  }
+
+  // let server actions and route handlers in this request see the current locale
+  if (isLocale(segment)) request.cookies.set(LOCALE_COOKIE, segment);
+
+  let response = NextResponse.next({ request });
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
@@ -27,18 +45,20 @@ export async function proxy(request: NextRequest) {
 
   const { data } = await supabase.auth.getClaims();
   const signedIn = Boolean(data?.claims?.sub);
-  const { pathname } = request.nextUrl;
-  // API routes answer 401 themselves instead of redirecting
-  const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`)) || pathname.startsWith("/api/");
 
-  if (!signedIn && !isPublic) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.search = pathname === "/" ? "" : `?next=${encodeURIComponent(pathname + request.nextUrl.search)}`;
-    return NextResponse.redirect(url);
-  }
-  if (signedIn && pathname === "/login") {
-    return NextResponse.redirect(new URL("/", request.url));
+  if (isAppPage && isLocale(segment)) {
+    const page = pathname.slice(segment.length + 1) || "/";
+    const isPublic = PUBLIC_PAGES.includes(page);
+    if (!signedIn && !isPublic) {
+      const url = request.nextUrl.clone();
+      url.pathname = localePath(segment, "/login");
+      url.search = page === "/" ? "" : `?next=${encodeURIComponent(pathname + search)}`;
+      return NextResponse.redirect(url);
+    }
+    if (signedIn && page === "/login") {
+      return NextResponse.redirect(new URL(localePath(segment, "/"), request.url));
+    }
+    response.cookies.set(LOCALE_COOKIE, segment, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
   }
 
   return response;

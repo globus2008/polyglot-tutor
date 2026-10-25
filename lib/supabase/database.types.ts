@@ -133,14 +133,14 @@ isOneToOne: false
                   ]
                 },"mistakes": {
                   Row: {
-                    "category": string,"clean_lessons": number,"corrected": string,"explanation_cs": string,"first_seen_at": string,"id": string,"language": string,"last_seen_at": string,"lesson_id": string | null,"mastered_at": string | null,"occurrences": number,"original": string,"pattern_key": string | null,"user_id": string
+                    "category": string,"clean_lessons": number,"corrected": string,"explanation": string,"first_seen_at": string,"id": string,"language": string,"last_seen_at": string,"lesson_id": string | null,"mastered_at": string | null,"occurrences": number,"original": string,"pattern_key": string | null,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "category": string,"clean_lessons"?: number,"corrected": string,"explanation_cs"?: string,"first_seen_at"?: string,"id"?: string,"language": string,"last_seen_at"?: string,"lesson_id"?: string | null,"mastered_at"?: string | null,"occurrences"?: number,"original": string,"pattern_key"?: string | null,"user_id"?: string
+                    "category": string,"clean_lessons"?: number,"corrected": string,"explanation"?: string,"first_seen_at"?: string,"id"?: string,"language": string,"last_seen_at"?: string,"lesson_id"?: string | null,"mastered_at"?: string | null,"occurrences"?: number,"original": string,"pattern_key"?: string | null,"user_id"?: string
                   }
                   Update: {
-                    "category"?: string,"clean_lessons"?: number,"corrected"?: string,"explanation_cs"?: string,"first_seen_at"?: string,"id"?: string,"language"?: string,"last_seen_at"?: string,"lesson_id"?: string | null,"mastered_at"?: string | null,"occurrences"?: number,"original"?: string,"pattern_key"?: string | null,"user_id"?: string
+                    "category"?: string,"clean_lessons"?: number,"corrected"?: string,"explanation"?: string,"first_seen_at"?: string,"id"?: string,"language"?: string,"last_seen_at"?: string,"lesson_id"?: string | null,"mastered_at"?: string | null,"occurrences"?: number,"original"?: string,"pattern_key"?: string | null,"user_id"?: string
                   }
                   Relationships: [
                     {

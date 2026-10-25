@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { resolveOpenAIKey } from "./api-keys";
-import { CEFR_CODES, type Language } from "./languages";
+import { CEFR_CODES, LANGUAGES, NATIVE_LANGUAGES, isNativeLanguage, type Language, type NativeLanguage } from "./languages";
 import type { LessonPlan } from "./planner";
 import { newCard, Rating, review } from "./srs";
 import { createAdminClient } from "./supabase/server";
@@ -17,27 +17,18 @@ const MASTERY_CLEAN_LESSONS = 2;
 
 const CATEGORIES = ["grammar", "vocabulary", "word_order", "verb_tense", "agreement", "preposition", "phrasing", "other"];
 
-const LANGUAGE_NAME_EN: Record<Language, string> = {
-  es: "Spanish",
-  en: "English",
-  de: "German",
-  it: "Italian",
-  fr: "French",
-  ru: "Russian",
-};
-
 export type LessonAnalysis = {
   summary: string;
-  summary_cs: string;
-  strengths_cs: string;
-  next_focus_cs: string;
+  feedback: string;
+  strengths: string;
+  next_focus: string;
   cefr_estimate: string | null;
-  mistakes: { pattern_key: string; original: string; corrected: string; category: string; explanation_cs: string }[];
-  new_vocabulary: { term: string; translation_cs: string; example: string }[];
+  mistakes: { pattern_key: string; original: string; corrected: string; category: string; explanation: string }[];
+  new_vocabulary: { term: string; translation: string; example: string }[];
   reviewed_vocabulary: { term: string; result: "used_correctly" | "struggled" | "not_used" }[];
 };
 
-/** What the lesson page shows; stored in lessons.analysis. */
+/** What the lesson page shows; stored in lessons.analysis. Texts are in the learner's native language. */
 export type StoredAnalysis = Omit<LessonAnalysis, "summary" | "reviewed_vocabulary" | "mistakes"> & {
   mistakes: (LessonAnalysis["mistakes"][number] & { recurring: boolean })[];
   mastered: string[];
@@ -48,9 +39,9 @@ const schema = {
   additionalProperties: false,
   required: [
     "summary",
-    "summary_cs",
-    "strengths_cs",
-    "next_focus_cs",
+    "feedback",
+    "strengths",
+    "next_focus",
     "cefr_estimate",
     "mistakes",
     "new_vocabulary",
@@ -61,9 +52,12 @@ const schema = {
       type: "string",
       description: "One English sentence: what the conversation was about and what was practised. Used as memory for later lessons.",
     },
-    summary_cs: { type: "string", description: "2–3 friendly sentences in Czech for the learner summarising the lesson." },
-    strengths_cs: { type: "string", description: "One sentence in Czech: what the learner did well." },
-    next_focus_cs: { type: "string", description: "One sentence in Czech: what to focus on next time." },
+    feedback: {
+      type: "string",
+      description: "2–3 friendly sentences for the learner summarising the lesson, in the learner's native language.",
+    },
+    strengths: { type: "string", description: "One sentence in the learner's native language: what they did well." },
+    next_focus: { type: "string", description: "One sentence in the learner's native language: what to focus on next time." },
     cefr_estimate: { type: ["string", "null"], enum: [...CEFR_CODES, null] },
     mistakes: {
       type: "array",
@@ -71,7 +65,7 @@ const schema = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["pattern_key", "original", "corrected", "category", "explanation_cs"],
+        required: ["pattern_key", "original", "corrected", "category", "explanation"],
         properties: {
           pattern_key: {
             type: "string",
@@ -81,21 +75,24 @@ const schema = {
           original: { type: "string" },
           corrected: { type: "string" },
           category: { type: "string", enum: CATEGORIES },
-          explanation_cs: { type: "string", description: "One short sentence in Czech explaining the rule." },
+          explanation: {
+            type: "string",
+            description: "One short sentence in the learner's native language explaining the rule.",
+          },
         },
       },
     },
     new_vocabulary: {
       type: "array",
       description:
-        "Up to 10 words or phrases worth learning: ones the learner did not know (asked for, said in Czech, avoided) or got wrong, and new expressions the tutor introduced that are above the learner's level. Skip words the learner already used correctly and basic words of their level. Dictionary form.",
+        "Up to 10 words or phrases worth learning: ones the learner did not know (asked for, said in their native language, avoided) or got wrong, and new expressions the tutor introduced that are above the learner's level. Skip words the learner already used correctly and basic words of their level. Dictionary form.",
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["term", "translation_cs", "example"],
+        required: ["term", "translation", "example"],
         properties: {
           term: { type: "string" },
-          translation_cs: { type: "string" },
+          translation: { type: "string", description: "Translation into the learner's native language." },
           example: { type: "string", description: "Short example sentence in the target language." },
         },
       },
@@ -120,6 +117,7 @@ type TranscriptLine = { role: "user" | "assistant"; text: string };
 
 function buildPrompt(input: {
   language: Language;
+  native: NativeLanguage;
   level: string;
   plan: LessonPlan | undefined;
   openPatternKeys: string[];
@@ -128,7 +126,8 @@ function buildPrompt(input: {
 }) {
   const { plan } = input;
   const lines = input.transcript.map((l) => `${l.role === "user" ? "Learner" : "Tutor"}: ${l.text}`).join("\n");
-  return `Analyse this ${LANGUAGE_NAME_EN[input.language]} conversation lesson. The learner is Czech, level ${input.level}.
+  const native = NATIVE_LANGUAGES[input.native];
+  return `Analyse this ${LANGUAGES[input.language].english} conversation lesson. The learner's native language is ${native}, level ${input.level}. Write feedback, explanations and translations in ${native}.
 
 Planned topic: ${plan?.topic?.title ?? "free conversation"}
 Planned grammar: ${plan?.grammar ?? "none"}
@@ -138,7 +137,7 @@ Corrections the tutor flagged during the lesson (hints, may contain duplicates):
     input.corrections.map((c) => `"${c.original}" → "${c.corrected}"`).join("; ") || "none"
   }
 
-Only judge what the learner said; speech-to-text may contain small transcription errors – ignore those and anything that is only pronunciation. Czech words used by the learner are not mistakes but may indicate vocabulary to learn.
+Only judge what the learner said; speech-to-text may contain small transcription errors – ignore those and anything that is only pronunciation. ${native} words used by the learner are not mistakes but may indicate vocabulary to learn.
 
 Transcript:
 ${lines}`;
@@ -197,7 +196,7 @@ export async function analyzeLesson(lessonId: string): Promise<boolean> {
         .from("lessons")
         .update({
           status: "analyzed",
-          analysis: { short: true, summary_cs: "Lekce byla příliš krátká na vyhodnocení." },
+          analysis: { short: true },
         })
         .eq("id", lessonId);
       return true;
@@ -205,20 +204,26 @@ export async function analyzeLesson(lessonId: string): Promise<boolean> {
 
     const [key, { data: profile }, { data: openMistakes }] = await Promise.all([
       resolveOpenAIKey(lesson.user_id),
-      db.from("learner_profiles").select("cefr_level").eq("user_id", lesson.user_id).eq("language", language).maybeSingle(),
+      db
+        .from("learner_profiles")
+        .select("cefr_level, native_lang")
+        .eq("user_id", lesson.user_id)
+        .eq("language", language)
+        .maybeSingle(),
       db
         .from("mistakes")
         .select("id, pattern_key, occurrences, clean_lessons")
         .eq("user_id", lesson.user_id)
         .eq("language", language),
     ]);
-    if (!key) throw new Error("Chybí API klíč");
+    if (!key) throw new Error("No API key");
 
     const analysis = await callModel(
       key.key,
       lesson.user_id,
       buildPrompt({
         language,
+        native: isNativeLanguage(profile?.native_lang) ? profile.native_lang : "en",
         level: profile?.cefr_level ?? "unknown",
         plan,
         openPatternKeys: (openMistakes ?? []).map((m) => m.pattern_key).filter((k): k is string => Boolean(k)),
@@ -237,7 +242,7 @@ export async function analyzeLesson(lessonId: string): Promise<boolean> {
     console.error("Lesson analysis failed", lessonId, error);
     await db
       .from("lessons")
-      .update({ status: "finished", analysis: { error: "Vyhodnocení lekce se nepovedlo." } })
+      .update({ status: "finished", analysis: { error: "failed" } })
       .eq("id", lessonId);
     return false;
   }
@@ -267,7 +272,7 @@ async function applyAnalysis(
       original: m.original,
       corrected: m.corrected,
       category: m.category,
-      explanation_cs: m.explanation_cs,
+      explanation: m.explanation,
       lesson_id: lessonId,
       last_seen_at: now,
       clean_lessons: 0,
@@ -312,7 +317,7 @@ async function applyAnalysis(
       language,
       lesson_id: lessonId,
       term: v.term.trim(),
-      translation: v.translation_cs,
+      translation: v.translation,
       example: v.example,
       ...newCard(),
     }));
@@ -327,12 +332,12 @@ async function applyAnalysis(
   }
 
   return {
-    summary_cs: analysis.summary_cs,
-    strengths_cs: analysis.strengths_cs,
-    next_focus_cs: analysis.next_focus_cs,
+    feedback: analysis.feedback,
+    strengths: analysis.strengths,
+    next_focus: analysis.next_focus,
     cefr_estimate: analysis.cefr_estimate,
     mistakes,
-    new_vocabulary: fresh.map((v) => ({ term: v.term, translation_cs: v.translation, example: v.example })),
+    new_vocabulary: fresh.map((v) => ({ term: v.term, translation: v.translation, example: v.example })),
     mastered,
   };
 }

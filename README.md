@@ -1,6 +1,6 @@
 # Polyglot Tutor
 
-A voice conversation tutor for Spanish, English, German, Italian, French and Russian (explanations in Czech). It talks with you through the OpenAI Realtime API, corrects mistakes as you go and, unlike a plain chat, **remembers** what you have covered: topics, recurring mistakes and vocabulary due for review. Each lesson is planned from that history so conversations don't loop back to the same subjects.
+A voice conversation tutor for Spanish, English, German, Italian, French and Russian. The UI is available in English and Czech, and explanations, translations and feedback come in the learner's native language. It talks with you through the OpenAI Realtime API, corrects mistakes as you go and, unlike a plain chat, **remembers** what you have covered: topics, recurring mistakes and vocabulary due for review. Each lesson is planned from that history so conversations don't loop back to the same subjects.
 
 Built for slower and quieter speakers too: the tutor can lead the conversation and suggest topics, and you control how long it waits before taking the turn (or switch to push-to-talk so it never interrupts).
 
@@ -16,6 +16,12 @@ Each user brings their own OpenAI API key; a family can share one key.
 | 4. Review & progress – spaced repetition, dashboard | ✅ |
 | 5. Households – invites, shared key, per-member limits | ✅ |
 | 6. PWA & deployment | ⏳ |
+
+## Localisation
+
+Pages live under `app/[lang]` (`/en/…`, `/cs/…`). The proxy redirects bare URLs using the `locale` cookie or the browser's `Accept-Language`. UI strings are in `lib/i18n/dictionaries`: `en.ts` defines the shape and every other locale must match it, so a missing translation fails the type check. Server Components use `getDictionary()`, Server Actions and Route Handlers `getRequestDictionary()`, Client Components `useI18n()`.
+
+To add a UI language, add it to `LOCALES` in `lib/i18n/locales.ts` and create a dictionary next to `cs.ts`.
 
 ## Stack
 

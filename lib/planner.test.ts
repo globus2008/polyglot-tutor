@@ -76,7 +76,7 @@ describe("planLesson", () => {
         pattern_key: `k${i}`,
         original: "o",
         corrected: "c",
-        explanation_cs: "e",
+        explanation: "e",
         occurrences: 5 - i,
       })),
       dueVocab: Array.from({ length: 12 }, (_, i) => ({ id: `v${i}`, term: `t${i}`, translation: "x" })),

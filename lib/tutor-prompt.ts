@@ -1,5 +1,5 @@
 import type { TurnMode, TutorInitiative } from "./conversation-style";
-import type { CefrLevel, Language } from "./languages";
+import { LANGUAGES, NATIVE_LANGUAGES, type CefrLevel, type Language, type NativeLanguage } from "./languages";
 import type { LessonPlan } from "./planner";
 
 // Builds the voice tutor's instructions and the Realtime session config.
@@ -8,6 +8,7 @@ import type { LessonPlan } from "./planner";
 export type TutorProfile = {
   language: Language;
   cefr_level: CefrLevel;
+  native_lang: NativeLanguage;
   interests: string[];
   goals: string;
   tutor_initiative: TutorInitiative;
@@ -21,31 +22,20 @@ export type LessonContext = {
   maxMinutes: number;
 };
 
-export const REALTIME_MODELS = {
-  "gpt-realtime-2.1-mini": { label: "Úsporný", description: "Levnější, pro běžné procvičování stačí." },
-  "gpt-realtime-2.1": { label: "Nejlepší", description: "Přirozenější hlas a přesnější opravy, dražší." },
-} as const;
+/** Voice models users can pick per lesson; labels are in the i18n dictionaries. */
+export const REALTIME_MODELS = ["gpt-realtime-2.1-mini", "gpt-realtime-2.1"] as const;
 
-export type RealtimeModel = keyof typeof REALTIME_MODELS;
+export type RealtimeModel = (typeof REALTIME_MODELS)[number];
 export const DEFAULT_REALTIME_MODEL: RealtimeModel = "gpt-realtime-2.1-mini";
 
 export const MAX_LESSON_MINUTES = 15;
 
 export function isRealtimeModel(value: unknown): value is RealtimeModel {
-  return typeof value === "string" && value in REALTIME_MODELS;
+  return typeof value === "string" && (REALTIME_MODELS as readonly string[]).includes(value);
 }
 
-const LANGUAGE_NAME: Record<Language, string> = {
-  es: "Spanish",
-  en: "English",
-  de: "German",
-  it: "Italian",
-  fr: "French",
-  ru: "Russian",
-};
-
 const LEVEL_GUIDANCE: Record<CefrLevel, string> = {
-  A1: "Use very short, simple sentences, present tense and the most common words. Speak slowly. Repeat key words. It is fine to add a single Czech word in brackets when the learner is clearly lost.",
+  A1: "Use very short, simple sentences, present tense and the most common words. Speak slowly. Repeat key words. It is fine to add a single word in the learner's native language in brackets when they are clearly lost.",
   A2: "Use short sentences and everyday vocabulary, mostly present and simple past. Speak slowly and clearly.",
   B1: "Use natural but clear language at a moderate pace. Introduce some new vocabulary and explain it with simple paraphrases in the target language.",
   B2: "Speak naturally at normal pace. Use idioms occasionally and check they were understood.",
@@ -64,7 +54,8 @@ const INITIATIVE_GUIDANCE: Record<TutorInitiative, string> = {
 };
 
 export function buildTutorInstructions(profile: TutorProfile, context: LessonContext): string {
-  const language = LANGUAGE_NAME[profile.language];
+  const language = LANGUAGES[profile.language].english;
+  const native = NATIVE_LANGUAGES[profile.native_lang];
   const interests = profile.interests.length ? profile.interests.join(", ") : "not specified";
 
   const silenceHelp =
@@ -77,12 +68,12 @@ export function buildTutorInstructions(profile: TutorProfile, context: LessonCon
       ? `The learner ends each turn by pressing a button, so a turn you receive is always complete, even if it contains long pauses or fillers.`
       : `The learner may pause while searching for words. A turn can end mid-thought; if the last sentence looks unfinished, encourage them briefly to continue instead of taking over the topic.`;
 
-  return `You are a warm, patient ${language} conversation tutor. The learner's native language is Czech. Their level is ${profile.cefr_level} (CEFR).
+  return `You are a warm, patient ${language} conversation tutor. The learner's native language is ${native}. Their level is ${profile.cefr_level} (CEFR).
 
 # Language
 - Speak only ${language}, adapted to the level: ${LEVEL_GUIDANCE[profile.cefr_level]}
-- If the learner speaks Czech because they lack a word, give them the ${language} expression and invite them to use it.
-- Use Czech only for very brief explanations when a ${language} explanation would not be understood.
+- If the learner speaks ${native} because they lack a word, give them the ${language} expression and invite them to use it.
+- Use ${native} only for very brief explanations when a ${language} explanation would not be understood.
 
 # Conversation style
 ${INITIATIVE_GUIDANCE[profile.tutor_initiative]}
@@ -132,7 +123,7 @@ function buildPlanSection(plan: LessonPlan, initiative: TutorInitiative): string
   }
 
   if (plan.mistakes.length) {
-    const list = plan.mistakes.map((m) => `- "${m.original}" → "${m.corrected}" (${m.explanation_cs})`).join("\n");
+    const list = plan.mistakes.map((m) => `- "${m.original}" → "${m.corrected}" (${m.explanation})`).join("\n");
     parts.push(
       `Recurring mistakes of this learner – create opportunities to practise the correct form and point it out briefly when it recurs:\n${list}`,
     );
@@ -161,9 +152,12 @@ export const LOG_CORRECTION_TOOL = {
         type: "string",
         enum: ["grammar", "vocabulary", "word_order", "verb_tense", "agreement", "preposition", "phrasing", "other"],
       },
-      explanation_cs: { type: "string", description: "One short sentence in Czech explaining the rule." },
+      explanation: {
+        type: "string",
+        description: "One short sentence explaining the rule, in the learner's native language.",
+      },
     },
-    required: ["original", "corrected", "category", "explanation_cs"],
+    required: ["original", "corrected", "category", "explanation"],
     additionalProperties: false,
   },
 } as const;
@@ -172,7 +166,7 @@ export type Correction = {
   original: string;
   corrected: string;
   category: string;
-  explanation_cs: string;
+  explanation: string;
 };
 
 const OUTPUT_SPEED: Record<CefrLevel, number> = { A1: 0.85, A2: 0.9, B1: 0.95, B2: 1, C1: 1, C2: 1 };
@@ -196,7 +190,7 @@ export function buildRealtimeSession(profile: TutorProfile, model: RealtimeModel
     audio: {
       input: {
         noise_reduction: { type: "near_field" as const },
-        // no fixed language: learners fall back to Czech when stuck
+        // no fixed language: learners fall back to their native language when stuck
         transcription: { model: "gpt-4o-mini-transcribe" },
         turn_detection: turnDetection,
       },

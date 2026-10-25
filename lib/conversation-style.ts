@@ -1,37 +1,12 @@
 // Options for how the voice tutor behaves. Stored per learner profile (language) because
-// the same person usually needs more time in a weaker language.
+// the same person usually needs more time in a weaker language. Labels are in the i18n
+// dictionaries.
 
-export const TUTOR_INITIATIVE = {
-  lead: {
-    label: "Lektor vede rozhovor",
-    description: "Sám nabízí témata a otázky, při zaváhání napoví slovíčka nebo dá na výběr z několika odpovědí.",
-  },
-  balanced: {
-    label: "Vyváženě",
-    description: "Lektor navrhne téma a ptá se, ale nechává vás rozhovor rozvíjet.",
-  },
-  follow: {
-    label: "Vedu já",
-    description: "Lektor reaguje na to, o čem chcete mluvit, a sám přichází s náměty jen když je potřeba.",
-  },
-} as const;
+export const TUTOR_INITIATIVE_CODES = ["lead", "balanced", "follow"] as const;
+export type TutorInitiative = (typeof TUTOR_INITIATIVE_CODES)[number];
 
-export type TutorInitiative = keyof typeof TUTOR_INITIATIVE;
-export const TUTOR_INITIATIVE_CODES = Object.keys(TUTOR_INITIATIVE) as TutorInitiative[];
-
-export const TURN_MODES = {
-  auto: {
-    label: "Automaticky",
-    description: "Lektor pozná, že jste domluvili, podle pauzy v řeči.",
-  },
-  push_to_talk: {
-    label: "Tlačítkem",
-    description: "Lektor nikdy neskočí do řeči – svůj tah ukončíte tlačítkem, i když přemýšlíte dlouho.",
-  },
-} as const;
-
-export type TurnMode = keyof typeof TURN_MODES;
-export const TURN_MODE_CODES = Object.keys(TURN_MODES) as TurnMode[];
+export const TURN_MODE_CODES = ["auto", "push_to_talk"] as const;
+export type TurnMode = (typeof TURN_MODE_CODES)[number];
 
 /** Silence (ms) before the tutor takes the turn in auto mode. */
 export const END_OF_TURN_PAUSE = { min: 500, max: 4000, step: 250, default: 1500 } as const;

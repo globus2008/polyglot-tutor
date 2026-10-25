@@ -5,7 +5,8 @@ import { buildRealtimeSession, buildTutorInstructions, type TutorProfile } from 
 const profile: TutorProfile = {
   language: "es",
   cefr_level: "A2",
-  interests: ["hudba", "cestování"],
+  native_lang: "cs",
+  interests: ["music", "travel"],
   goals: "Dovolená v Andalusii",
   tutor_initiative: "lead",
   turn_mode: "auto",
@@ -26,7 +27,7 @@ describe("buildTutorInstructions", () => {
           pattern_key: "ser_estar",
           original: "soy cansado",
           corrected: "estoy cansado",
-          explanation_cs: "stav = estar",
+          explanation: "stav = estar",
           occurrences: 3,
         },
       ],
@@ -36,7 +37,7 @@ describe("buildTutorInstructions", () => {
     const text = buildTutorInstructions(profile, { plan, maxMinutes: 15 });
     expect(text).toContain("Spanish");
     expect(text).toContain("A2");
-    expect(text).toContain("hudba, cestování");
+    expect(text).toContain("music, travel");
     expect(text).toContain("Dovolená v Andalusii");
     expect(text).toContain("Topic: At the doctor's – Role-play symptoms.");
     expect(text).toContain("Grammar to practise: pretérito indefinido");
@@ -62,6 +63,12 @@ describe("buildTutorInstructions", () => {
   it("tells the tutor to wait when idle help is off", () => {
     const text = buildTutorInstructions({ ...profile, idle_prompt_s: 0 }, { plan: emptyPlan, maxMinutes: 15 });
     expect(text).toContain("If they are silent, wait.");
+  });
+
+  it("explains in the learner's native language", () => {
+    const text = buildTutorInstructions({ ...profile, native_lang: "de" }, { plan: emptyPlan, maxMinutes: 15 });
+    expect(text).toContain("native language is German");
+    expect(text).not.toContain("Czech");
   });
 
   it("names the target language", () => {

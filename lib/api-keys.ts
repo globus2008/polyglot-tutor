@@ -93,3 +93,10 @@ export async function validateOpenAIKey(key: string): Promise<"ok" | "invalid" |
     return "unreachable";
   }
 }
+
+/** Format check plus a live check with OpenAI, for keys users are about to save. */
+export async function checkNewKey(key: string): Promise<"ok" | "notAKey" | "rejected" | "unreachable"> {
+  if (!/^sk-[A-Za-z0-9_-]{20,}$/.test(key)) return "notAKey";
+  const result = await validateOpenAIKey(key);
+  return result === "invalid" ? "rejected" : result;
+}

@@ -3,8 +3,11 @@
 import { useActionState } from "react";
 import { SubmitButton } from "@/components/submit-button";
 import { FormMessage, inputClass } from "@/components/ui";
+import { useI18n } from "@/lib/i18n/client";
+
 type KeyState = { status: string; message?: string };
 
+/** Form for a personal or household OpenAI key; the action validates and stores it. */
 export function ApiKeyForm<S extends KeyState>({
   hasKey,
   saveAction,
@@ -12,12 +15,13 @@ export function ApiKeyForm<S extends KeyState>({
   hasKey: boolean;
   saveAction: (prev: S, formData: FormData) => Promise<S>;
 }) {
+  const { t } = useI18n();
   const [state, action] = useActionState<S, FormData>(saveAction, { status: "idle" } as Awaited<S>);
 
   return (
     <form action={action} className="space-y-3">
       <label className="block text-sm font-medium" htmlFor="api_key">
-        {hasKey ? "Nahradit klíčem" : "OpenAI API klíč"}
+        {hasKey ? t.apiKey.replace : t.apiKey.label}
       </label>
       <input
         id="api_key"
@@ -30,7 +34,7 @@ export function ApiKeyForm<S extends KeyState>({
         className={`${inputClass} font-mono`}
       />
       <FormMessage status={state.status} message={state.message} />
-      <SubmitButton pendingText="Ověřuji…">Ověřit a uložit</SubmitButton>
+      <SubmitButton pendingText={t.apiKey.verifying}>{t.apiKey.verifyAndSave}</SubmitButton>
     </form>
   );
 }

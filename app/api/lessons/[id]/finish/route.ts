@@ -1,6 +1,7 @@
 import { after, NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { analyzeLesson } from "@/lib/analysis";
+import { getRequestDictionary } from "@/lib/i18n/server";
 import { localDay } from "@/lib/progress";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { MAX_LESSON_MINUTES } from "@/lib/tutor-prompt";
@@ -18,7 +19,7 @@ const bodySchema = z.object({
         original: z.string().max(500),
         corrected: z.string().max(500),
         category: z.string().max(40),
-        explanation_cs: z.string().max(500),
+        explanation: z.string().max(500),
       }),
     )
     .max(100),
@@ -28,13 +29,13 @@ const bodySchema = z.object({
 // Saves the transcript and corrections of a lesson and books the audio time.
 export async function POST(request: NextRequest, { params }: RouteContext<"/api/lessons/[id]/finish">) {
   const { id } = await params;
-  const supabase = await createClient();
+  const [t, supabase] = await Promise.all([getRequestDictionary(), createClient()]);
   const { data: auth } = await supabase.auth.getClaims();
   const userId = auth?.claims?.sub;
-  if (!userId) return NextResponse.json({ error: "Nejste přihlášeni." }, { status: 401 });
+  if (!userId) return NextResponse.json({ error: t.errors.notSignedIn }, { status: 401 });
 
   const body = bodySchema.safeParse(await request.json().catch(() => null));
-  if (!body.success) return NextResponse.json({ error: "Neplatný požadavek." }, { status: 400 });
+  if (!body.success) return NextResponse.json({ error: t.errors.badRequest }, { status: 400 });
 
   const { data: lesson } = await supabase
     .from("lessons")
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
     .eq("id", id)
     .eq("user_id", userId)
     .maybeSingle();
-  if (!lesson) return NextResponse.json({ error: "Lekce nenalezena." }, { status: 404 });
+  if (!lesson) return NextResponse.json({ error: t.errors.lessonNotFound }, { status: 404 });
   if (lesson.status !== "active") return NextResponse.json({ ok: true });
 
   // duration comes from the server clock, not the client, capped at the lesson's allowance
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
     })
     .eq("id", id)
     .eq("status", "active");
-  if (error) return NextResponse.json({ error: "Lekci se nepodařilo uložit." }, { status: 500 });
+  if (error) return NextResponse.json({ error: t.errors.lessonSaveFailed }, { status: 500 });
 
   await createAdminClient().rpc("add_usage", {
     p_user_id: userId,

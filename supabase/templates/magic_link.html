@@ -1,6 +1,5 @@
-<h2>Přihlášení do Polyglot Tutor</h2>
-<p>Váš přihlašovací kód:</p>
+<h2>Polyglot Tutor</h2>
 <p style="font-size:28px;font-weight:bold;letter-spacing:4px">{{ .Token }}</p>
-<p>Zadejte ho na přihlašovací stránce, nebo klikněte na odkaz:</p>
-<p><a href="{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=email">Přihlásit se</a></p>
-<p style="color:#666">Kód i odkaz platí jednu hodinu. Pokud jste o přihlášení nežádali, e-mail ignorujte.</p>
+<p>Enter this code on the sign-in page, or <a href="{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=email">sign in with this link</a>. Both are valid for one hour. If you didn't ask to sign in, ignore this email.</p>
+<hr style="border:none;border-top:1px solid #ddd;margin:20px 0">
+<p>Zadejte tento kód na přihlašovací stránce, nebo se <a href="{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=email">přihlaste tímto odkazem</a>. Obojí platí jednu hodinu. Pokud jste o přihlášení nežádali, e-mail ignorujte.</p>

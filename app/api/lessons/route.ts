@@ -2,8 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { resolveOpenAIKey } from "@/lib/api-keys";
 import { getHouseholdAllowance } from "@/lib/households";
+import { getRequestDictionary, getRequestLocale } from "@/lib/i18n/server";
 import type { TurnMode, TutorInitiative } from "@/lib/conversation-style";
-import { LANGUAGE_CODES, type CefrLevel } from "@/lib/languages";
+import { isNativeLanguage, LANGUAGE_CODES, type CefrLevel } from "@/lib/languages";
 import { planLesson, type LessonPlan } from "@/lib/planner";
 import { createRealtimeClientSecret, describeOpenAIError, OpenAIError } from "@/lib/realtime";
 import { createClient } from "@/lib/supabase/server";
@@ -25,15 +26,15 @@ const fail = (status: number, message: string) => NextResponse.json({ error: mes
 
 // Starts a voice lesson: records it and returns an ephemeral Realtime token carrying the tutor setup.
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
+  const [t, locale, supabase] = await Promise.all([getRequestDictionary(), getRequestLocale(), createClient()]);
   const { data: auth } = await supabase.auth.getClaims();
   const userId = auth?.claims?.sub;
-  if (!userId) return fail(401, "Nejste přihlášeni.");
+  if (!userId) return fail(401, t.errors.notSignedIn);
 
   const body = bodySchema.safeParse(await request.json().catch(() => null));
-  if (!body.success) return fail(400, "Neplatný požadavek.");
+  if (!body.success) return fail(400, t.errors.badRequest);
   const { language, model } = body.data;
-  if (!isRealtimeModel(model)) return fail(400, "Neplatný model.");
+  if (!isRealtimeModel(model)) return fail(400, t.errors.badRequest);
 
   const [{ data: profile }, { data: recent }, { data: topics }, { data: mistakes }, { data: vocab }, key] =
     await Promise.all([
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest) {
       supabase.from("topics").select("id, cefr_level, title, title_cs, scenario, tags").eq("language", language),
       supabase
         .from("mistakes")
-        .select("id, pattern_key, original, corrected, explanation_cs, occurrences")
+        .select("id, pattern_key, original, corrected, explanation, occurrences")
         .eq("user_id", userId)
         .eq("language", language)
         .is("mastered_at", null)
@@ -66,7 +67,7 @@ export async function POST(request: NextRequest) {
         .limit(10),
       resolveOpenAIKey(userId),
     ]);
-  if (!profile) return fail(404, "Nejdřív si vyplňte profil pro tento jazyk.");
+  if (!profile) return fail(404, t.errors.profileFirst);
 
   // lessons whose finish never arrived (crash, lost connection) must not block or skew history
   await supabase
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
     .eq("user_id", userId)
     .eq("status", "active")
     .lt("started_at", new Date(Date.now() - (MAX_LESSON_MINUTES + 5) * 60_000).toISOString());
-  if (!key) return fail(402, "Chybí OpenAI API klíč. Zadejte ho v Nastavení.");
+  if (!key) return fail(402, t.errors.missingKey);
 
   // the household key is shared money: each member has a daily allowance
   let maxMinutes = MAX_LESSON_MINUTES;
@@ -83,10 +84,7 @@ export async function POST(request: NextRequest) {
     const { limitMinutes, usedSeconds } = await getHouseholdAllowance(userId, key.householdId);
     maxMinutes = allowedLessonMinutes(limitMinutes, usedSeconds, MAX_LESSON_MINUTES);
     if (maxMinutes === 0) {
-      return fail(
-        429,
-        `Dnešní limit ${limitMinutes} min na rodinném klíči je vyčerpaný. Zítra můžete pokračovat, nebo si v Nastavení zadejte vlastní klíč.`,
-      );
+      return fail(429, t.errors.limitReached(limitMinutes));
     }
   }
 
@@ -94,6 +92,7 @@ export async function POST(request: NextRequest) {
     ...profile,
     language,
     cefr_level: profile.cefr_level as CefrLevel,
+    native_lang: isNativeLanguage(profile.native_lang) ? profile.native_lang : "en",
     tutor_initiative: profile.tutor_initiative as TutorInitiative,
     turn_mode: profile.turn_mode as TurnMode,
   };
@@ -117,7 +116,7 @@ export async function POST(request: NextRequest) {
   try {
     secret = await createRealtimeClientSecret(key.key, userId, session);
   } catch (error) {
-    if (error instanceof OpenAIError) return fail(502, describeOpenAIError(error));
+    if (error instanceof OpenAIError) return fail(502, t.errors.openai[describeOpenAIError(error)]);
     throw error;
   }
 
@@ -138,7 +137,7 @@ export async function POST(request: NextRequest) {
     })
     .select("id")
     .single();
-  if (error) return fail(500, "Lekci se nepodařilo založit.");
+  if (error) return fail(500, t.errors.lessonCreateFailed);
 
   return NextResponse.json({
     lessonId: lesson.id,
@@ -147,6 +146,6 @@ export async function POST(request: NextRequest) {
     turnMode: tutorProfile.turn_mode,
     idlePromptS: tutorProfile.idle_prompt_s,
     maxMinutes,
-    topicCs: plan.topic?.title_cs ?? null,
+    topic: plan.topic ? (locale === "cs" ? plan.topic.title_cs : plan.topic.title) : null,
   });
 }

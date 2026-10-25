@@ -11,7 +11,7 @@ export type PlannerMistake = {
   pattern_key: string | null;
   original: string;
   corrected: string;
-  explanation_cs: string;
+  explanation: string;
   occurrences: number;
 };
 export type PlannerVocab = { id: string; term: string; translation: string };

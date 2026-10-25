@@ -33,9 +33,10 @@ export async function createRealtimeClientSecret(apiKey: string, userId: string,
   return { value: data.value, expiresAt: data.expires_at };
 }
 
-export function describeOpenAIError(error: OpenAIError): string {
-  if (error.status === 401) return "OpenAI odmítlo API klíč. Zkontrolujte ho v Nastavení.";
-  if (error.status === 429) return "OpenAI hlásí vyčerpaný limit nebo kredit. Zkontrolujte účet na platform.openai.com.";
-  if (error.status === 403 || error.status === 404) return "Tento API klíč nemá přístup k hlasovému modelu.";
-  return "Spojení s OpenAI se nepodařilo, zkuste to prosím znovu.";
+/** Dictionary key (errors.openai.*) describing what went wrong. */
+export function describeOpenAIError(error: OpenAIError): "keyRejected" | "quota" | "noAccess" | "connection" {
+  if (error.status === 401) return "keyRejected";
+  if (error.status === 429) return "quota";
+  if (error.status === 403 || error.status === 404) return "noAccess";
+  return "connection";
 }

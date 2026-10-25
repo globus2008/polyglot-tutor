@@ -247,11 +247,11 @@ otp_expiry = 3600
 
 # Uncomment to customize email template
 [auth.email.template.magic_link]
-subject = "Přihlášení do Polyglot Tutor"
+subject = "Polyglot Tutor: sign-in code / přihlašovací kód"
 content_path = "./supabase/templates/magic_link.html"
 
 [auth.email.template.confirmation]
-subject = "Dokončete registraci do Polyglot Tutor"
+subject = "Polyglot Tutor: welcome / vítejte"
 content_path = "./supabase/templates/confirmation.html"
 
 # [auth.email.template.invite]
