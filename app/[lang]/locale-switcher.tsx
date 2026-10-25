@@ -1,35 +1,29 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
-import { LOCALES } from "@/lib/i18n";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { LOCALE_NAMES, LOCALES } from "@/lib/i18n";
 import { useI18n } from "@/lib/i18n/client";
 
-/** Links to the current page in the other UI languages. */
+/** Dropdown that opens the current page in another UI language. */
 export function LocaleSwitcher() {
   const { locale, t } = useI18n();
+  const router = useRouter();
   const pathname = usePathname();
   const search = useSearchParams().toString();
   const rest = pathname.replace(/^\/[^/]+/, "");
 
   return (
-    <nav aria-label={t.nav.language} className="flex gap-1 text-xs font-medium uppercase">
-      {LOCALES.map((l) =>
-        l === locale ? (
-          <span key={l} aria-current="true" className="rounded px-1.5 py-0.5 text-accent">
-            {l}
-          </span>
-        ) : (
-          <Link
-            key={l}
-            href={`/${l}${rest}${search ? `?${search}` : ""}`}
-            hrefLang={l}
-            className="rounded px-1.5 py-0.5 text-muted-foreground hover:text-foreground"
-          >
-            {l}
-          </Link>
-        ),
-      )}
-    </nav>
+    <select
+      aria-label={t.nav.language}
+      value={locale}
+      onChange={(e) => router.push(`/${e.target.value}${rest}${search ? `?${search}` : ""}`)}
+      className="rounded-lg border border-line bg-surface px-2 py-1 text-sm text-muted-foreground hover:text-foreground"
+    >
+      {LOCALES.map((l) => (
+        <option key={l} value={l} lang={l} aria-label={LOCALE_NAMES[l]}>
+          {l.toUpperCase()}
+        </option>
+      ))}
+    </select>
   );
 }
