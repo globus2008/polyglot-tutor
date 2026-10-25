@@ -14,8 +14,8 @@ Each user brings their own OpenAI API key; a family can share one key.
 | 2. Voice lesson – Realtime over WebRTC, live correction cards | ✅ |
 | 3. Memory – lesson analysis, mistakes, vocabulary, topic planner | ✅ |
 | 4. Review & progress – spaced repetition, dashboard | ✅ |
-| 5. Households – invites, shared key, per-member limits | ⏳ |
-| 6. PWA & deployment | |
+| 5. Households – invites, shared key, per-member limits | ✅ |
+| 6. PWA & deployment | ⏳ |
 
 ## Stack
 

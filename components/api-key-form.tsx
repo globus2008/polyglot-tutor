@@ -3,10 +3,16 @@
 import { useActionState } from "react";
 import { SubmitButton } from "@/components/submit-button";
 import { FormMessage, inputClass } from "@/components/ui";
-import { saveApiKey, type KeyState } from "./actions";
+type KeyState = { status: string; message?: string };
 
-export function ApiKeyForm({ hasKey }: { hasKey: boolean }) {
-  const [state, action] = useActionState<KeyState, FormData>(saveApiKey, { status: "idle" });
+export function ApiKeyForm<S extends KeyState>({
+  hasKey,
+  saveAction,
+}: {
+  hasKey: boolean;
+  saveAction: (prev: S, formData: FormData) => Promise<S>;
+}) {
+  const [state, action] = useActionState<S, FormData>(saveAction, { status: "idle" } as Awaited<S>);
 
   return (
     <form action={action} className="space-y-3">

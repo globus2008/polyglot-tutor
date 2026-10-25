@@ -9,9 +9,12 @@ export async function UserMenu() {
   if (!data?.claims?.sub) return null;
 
   return (
-    <nav className="flex items-center gap-4 text-sm">
+    <nav className="flex items-center gap-3 text-sm sm:gap-4">
       <Link href="/" className="hover:text-accent">
         Přehled
+      </Link>
+      <Link href="/household" className="hover:text-accent">
+        Rodina
       </Link>
       <Link href="/settings" className="hover:text-accent">
         Nastavení

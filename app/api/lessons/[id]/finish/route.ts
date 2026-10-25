@@ -1,6 +1,7 @@
 import { after, NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { analyzeLesson } from "@/lib/analysis";
+import { localDay } from "@/lib/progress";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { MAX_LESSON_MINUTES } from "@/lib/tutor-prompt";
 
@@ -44,11 +45,12 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
   if (!lesson) return NextResponse.json({ error: "Lekce nenalezena." }, { status: 404 });
   if (lesson.status !== "active") return NextResponse.json({ ok: true });
 
-  // duration comes from the server clock, not the client
+  // duration comes from the server clock, not the client, capped at the lesson's allowance
+  const plan = lesson.plan as { keySource?: string; householdId?: string; maxMinutes?: number };
   const endedAt = new Date();
   const durationS = Math.min(
     Math.round((endedAt.getTime() - new Date(lesson.started_at).getTime()) / 1000),
-    (MAX_LESSON_MINUTES + 2) * 60,
+    ((plan.maxMinutes ?? MAX_LESSON_MINUTES) + 1) * 60,
   );
 
   const { error } = await supabase
@@ -64,10 +66,9 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
     .eq("status", "active");
   if (error) return NextResponse.json({ error: "Lekci se nepodařilo uložit." }, { status: 500 });
 
-  const plan = lesson.plan as { keySource?: string; householdId?: string };
   await createAdminClient().rpc("add_usage", {
     p_user_id: userId,
-    p_day: endedAt.toISOString().slice(0, 10),
+    p_day: localDay(endedAt),
     p_seconds: durationS,
     ...(plan.keySource === "household" && plan.householdId ? { p_household_id: plan.householdId } : {}),
   });

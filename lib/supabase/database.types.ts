@@ -43,6 +43,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"household_invites": {
+                  Row: {
+                    "created_at": string,"created_by": string,"expires_at": string,"household_id": string,"id": string,"revoked_at": string | null,"token_hash": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by": string,"expires_at": string,"household_id": string,"id"?: string,"revoked_at"?: string | null,"token_hash": string
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string,"expires_at"?: string,"household_id"?: string,"id"?: string,"revoked_at"?: string | null,"token_hash"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "household_invites_household_id_fkey"
+      columns: ["household_id"]
+isOneToOne: false
+      referencedRelation: "households"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"household_members": {
                   Row: {
                     "daily_minutes_limit": number | null,"household_id": string,"joined_at": string,"role": string,"user_id": string
@@ -194,11 +214,22 @@ isOneToOne: false
             "add_usage":
 { Args: { "p_day": string,"p_household_id"?: string,"p_seconds": number,"p_user_id": string }; Returns: undefined
                            },
+"create_household":
+{ Args: { "p_name": string }; Returns: string
+                           },
+"household_for_invite":
+{ Args: { "p_token": string }; Returns: {
+              "household_id": string,"name": string
+            }[]
+                           },
 "is_household_member":
 { Args: { "hid": string }; Returns: boolean
                            },
 "is_household_owner":
 { Args: { "hid": string }; Returns: boolean
+                           },
+"join_household":
+{ Args: { "p_token": string }; Returns: string
                            }
           }
           Enums: {

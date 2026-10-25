@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { resolveOpenAIKey } from "@/lib/api-keys";
+import { getHouseholdAllowance } from "@/lib/households";
 import type { TurnMode, TutorInitiative } from "@/lib/conversation-style";
 import { LANGUAGE_CODES, type CefrLevel } from "@/lib/languages";
 import { planLesson, type LessonPlan } from "@/lib/planner";
@@ -13,6 +14,7 @@ import {
   MAX_LESSON_MINUTES,
   type TutorProfile,
 } from "@/lib/tutor-prompt";
+import { allowedLessonMinutes } from "@/lib/usage";
 
 const bodySchema = z.object({
   language: z.enum(LANGUAGE_CODES),
@@ -75,6 +77,19 @@ export async function POST(request: NextRequest) {
     .lt("started_at", new Date(Date.now() - (MAX_LESSON_MINUTES + 5) * 60_000).toISOString());
   if (!key) return fail(402, "Chybí OpenAI API klíč. Zadejte ho v Nastavení.");
 
+  // the household key is shared money: each member has a daily allowance
+  let maxMinutes = MAX_LESSON_MINUTES;
+  if (key.source === "household") {
+    const { limitMinutes, usedSeconds } = await getHouseholdAllowance(userId, key.householdId);
+    maxMinutes = allowedLessonMinutes(limitMinutes, usedSeconds, MAX_LESSON_MINUTES);
+    if (maxMinutes === 0) {
+      return fail(
+        429,
+        `Dnešní limit ${limitMinutes} min na rodinném klíči je vyčerpaný. Zítra můžete pokračovat, nebo si v Nastavení zadejte vlastní klíč.`,
+      );
+    }
+  }
+
   const tutorProfile: TutorProfile = {
     ...profile,
     language,
@@ -95,7 +110,7 @@ export async function POST(request: NextRequest) {
     openMistakes: mistakes ?? [],
     dueVocab: vocab ?? [],
   });
-  const instructions = buildTutorInstructions(tutorProfile, { plan, maxMinutes: MAX_LESSON_MINUTES });
+  const instructions = buildTutorInstructions(tutorProfile, { plan, maxMinutes });
   const session = buildRealtimeSession(tutorProfile, model, instructions);
 
   let secret;
@@ -115,6 +130,7 @@ export async function POST(request: NextRequest) {
       topic_id: plan.topic?.id ?? null,
       plan: {
         lesson: plan,
+        maxMinutes,
         instructions,
         keySource: key.source,
         householdId: key.source === "household" ? key.householdId : null,
@@ -130,7 +146,7 @@ export async function POST(request: NextRequest) {
     model,
     turnMode: tutorProfile.turn_mode,
     idlePromptS: tutorProfile.idle_prompt_s,
-    maxMinutes: MAX_LESSON_MINUTES,
+    maxMinutes,
     topicCs: plan.topic?.title_cs ?? null,
   });
 }

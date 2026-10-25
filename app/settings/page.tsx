@@ -3,12 +3,12 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { SubmitButton } from "@/components/submit-button";
 import { buttonClass, Card } from "@/components/ui";
-import { getKeyInfo } from "@/lib/api-keys";
+import { getKeyInfo, resolveOpenAIKey } from "@/lib/api-keys";
 import { getCurrentUser } from "@/lib/auth";
 import { isLanguage, LANGUAGE_CODES, LANGUAGES } from "@/lib/languages";
 import { createClient } from "@/lib/supabase/server";
-import { removeApiKey } from "./actions";
-import { ApiKeyForm } from "./api-key-form";
+import { ApiKeyForm } from "@/components/api-key-form";
+import { removeApiKey, saveApiKey } from "./actions";
 
 export const metadata: Metadata = { title: "Nastavení – Polyglot Tutor" };
 
@@ -28,8 +28,9 @@ const dateFormat = new Intl.DateTimeFormat("cs-CZ", { dateStyle: "medium" });
 async function SettingsContent() {
   const user = await getCurrentUser();
   const supabase = await createClient();
-  const [keyInfo, { data: profiles }] = await Promise.all([
+  const [keyInfo, resolved, { data: profiles }] = await Promise.all([
     getKeyInfo({ kind: "user", id: user.id }),
+    resolveOpenAIKey(user.id),
     supabase.from("learner_profiles").select("language, cefr_level, interests").eq("user_id", user.id).order("language"),
   ]);
   const missingLanguages = LANGUAGE_CODES.filter((l) => !profiles?.some((p) => p.language === l));
@@ -57,7 +58,13 @@ async function SettingsContent() {
             </form>
           </div>
         )}
-        <ApiKeyForm hasKey={Boolean(keyInfo)} />
+        {!keyInfo && resolved?.source === "household" && (
+          <p className="mb-4 rounded-xl bg-muted px-4 py-3 text-sm">
+            Teď používáte <Link href="/household" className="text-accent underline">rodinný klíč</Link> s denním
+            limitem. Vlastní klíč má přednost a limit se na něj nevztahuje.
+          </p>
+        )}
+        <ApiKeyForm hasKey={Boolean(keyInfo)} saveAction={saveApiKey} />
       </Card>
 
       <Card title="Jazykové profily">
