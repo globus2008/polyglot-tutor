@@ -427,7 +427,7 @@ export const cs: Dictionary = {
           "Supabase – databáze a přihlašování, servery v EU (Frankfurt).",
           "Vercel – hosting webové aplikace; požadavky mohou být zpracovány i mimo EU na základě standardních smluvních doložek.",
           "OpenAI – hlasové lekce a vyhodnocení lekcí. Zvuk z mikrofonu jde přímo z vašeho prohlížeče do OpenAI a účtuje se na váš (nebo rodinný) API klíč. Podle podmínek OpenAI API se tato data ve výchozím stavu nepoužívají k trénování a mohou být uchována nejvýše 30 dní kvůli odhalování zneužití.",
-          "Google (Gmail) – doručování přihlašovacích e-mailů.",
+          "Seznam.cz – doručování přihlašovacích e-mailů.",
         ],
       },
       {

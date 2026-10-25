@@ -425,7 +425,7 @@ export const en = {
           "Supabase – database and sign-in, hosted in the EU (Frankfurt).",
           "Vercel – hosting of the web application; requests may be processed outside the EU under standard contractual clauses.",
           "OpenAI – voice lessons and lesson analysis. Your microphone audio goes directly from your browser to OpenAI, billed to your own (or your family's) API key. Under OpenAI's API terms this data is not used for training by default and may be kept for up to 30 days for abuse monitoring.",
-          "Google (Gmail) – delivery of sign-in emails.",
+          "Seznam.cz – delivery of sign-in emails.",
         ],
       },
       {

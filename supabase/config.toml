@@ -425,7 +425,7 @@ enabled = true
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":180,\"commaStyle\":\"trailing\"}"
 
 # Cloud project. `supabase config push` applies the settings above with these overrides.
-# SMTP (smtp.gmail.com, polyglot.tutor.app@gmail.com) is configured in the dashboard so the app password never lands here.
+# SMTP (smtp.seznam.cz, polyglot.tutor@seznam.cz) is configured in the dashboard so the mailbox password never lands here.
 [remotes.production]
 project_id = "drikdnvpmekszioyrdti"
 
