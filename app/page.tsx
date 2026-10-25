@@ -55,9 +55,9 @@ async function Dashboard() {
                   <p className="text-sm text-muted-foreground">Úroveň {p.cefr_level}</p>
                 </div>
               </div>
-              <button type="button" disabled className={`${buttonClass()} mt-4 w-full`} title="Připravujeme">
+              <Link href={`/lesson/${p.language}`} className={`${buttonClass()} mt-4 w-full`}>
                 Začít lekci
-              </button>
+              </Link>
             </Card>
           );
         })}

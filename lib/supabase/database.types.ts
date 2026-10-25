@@ -93,14 +93,14 @@ isOneToOne: false
                   ]
                 },"lessons": {
                   Row: {
-                    "duration_s": number | null,"ended_at": string | null,"id": string,"language": string,"plan": NonNullable<Json>,"started_at": string,"status": string,"summary": string | null,"topic_id": string | null,"transcript": NonNullable<Json>,"user_id": string
+                    "corrections": NonNullable<Json>,"duration_s": number | null,"ended_at": string | null,"id": string,"language": string,"model": string | null,"plan": NonNullable<Json>,"started_at": string,"status": string,"summary": string | null,"topic_id": string | null,"transcript": NonNullable<Json>,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "duration_s"?: number | null,"ended_at"?: string | null,"id"?: string,"language": string,"plan"?: NonNullable<Json>,"started_at"?: string,"status"?: string,"summary"?: string | null,"topic_id"?: string | null,"transcript"?: NonNullable<Json>,"user_id"?: string
+                    "corrections"?: NonNullable<Json>,"duration_s"?: number | null,"ended_at"?: string | null,"id"?: string,"language": string,"model"?: string | null,"plan"?: NonNullable<Json>,"started_at"?: string,"status"?: string,"summary"?: string | null,"topic_id"?: string | null,"transcript"?: NonNullable<Json>,"user_id"?: string
                   }
                   Update: {
-                    "duration_s"?: number | null,"ended_at"?: string | null,"id"?: string,"language"?: string,"plan"?: NonNullable<Json>,"started_at"?: string,"status"?: string,"summary"?: string | null,"topic_id"?: string | null,"transcript"?: NonNullable<Json>,"user_id"?: string
+                    "corrections"?: NonNullable<Json>,"duration_s"?: number | null,"ended_at"?: string | null,"id"?: string,"language"?: string,"model"?: string | null,"plan"?: NonNullable<Json>,"started_at"?: string,"status"?: string,"summary"?: string | null,"topic_id"?: string | null,"transcript"?: NonNullable<Json>,"user_id"?: string
                   }
                   Relationships: [
                     {
@@ -191,7 +191,10 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "is_household_member":
+            "add_usage":
+{ Args: { "p_day": string,"p_household_id"?: string,"p_seconds": number,"p_user_id": string }; Returns: undefined
+                           },
+"is_household_member":
 { Args: { "hid": string }; Returns: boolean
                            },
 "is_household_owner":
