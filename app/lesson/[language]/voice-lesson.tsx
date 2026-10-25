@@ -2,23 +2,58 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { MicLevel } from "@/components/mic-level";
 import { buttonClass, inputClass } from "@/components/ui";
-import { connectRealtime, MicrophoneError, type RealtimeConnection, type ServerEvent } from "@/lib/realtime-client";
+import {
+  connectRealtime,
+  getMicrophone,
+  listMicrophones,
+  MicrophoneError,
+  type RealtimeConnection,
+  type ServerEvent,
+} from "@/lib/realtime-client";
 import { DEFAULT_REALTIME_MODEL, isRealtimeModel, REALTIME_MODELS, type Correction, type RealtimeModel } from "@/lib/tutor-prompt";
 
 type Phase = "ready" | "connecting" | "live" | "saving" | "done" | "error";
 type Message = { id: string; role: "user" | "assistant"; text: string };
 type Lesson = { lessonId: string; turnMode: "auto" | "push_to_talk"; idlePromptS: number; maxMinutes: number };
+type DiagEntry = { at: string; text: string };
 
 const MODEL_STORAGE_KEY = "polyglot.realtimeModel";
+const MIC_STORAGE_KEY = "polyglot.micDeviceId";
+
+// Events worth showing in the diagnostics panel, with a Czech hint.
+const DIAG_EVENTS: Record<string, string> = {
+  "session.created": "spojení s OpenAI navázáno",
+  "input_audio_buffer.speech_started": "server zaslechl řeč",
+  "input_audio_buffer.speech_stopped": "server: konec řeči",
+  "input_audio_buffer.committed": "váš tah odeslán",
+  "input_audio_buffer.timeout_triggered": "dlouhé ticho – lektor pomůže",
+  "conversation.item.input_audio_transcription.completed": "přepis vaší řeči hotov",
+  "conversation.item.input_audio_transcription.failed": "přepis vaší řeči selhal",
+  "response.done": "lektor dokončil odpověď",
+  error: "chyba",
+};
+
+function readStored(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function store(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // storage unavailable
+  }
+}
 
 function readStoredModel(): RealtimeModel {
-  try {
-    const stored = localStorage.getItem(MODEL_STORAGE_KEY);
-    return isRealtimeModel(stored) ? stored : DEFAULT_REALTIME_MODEL;
-  } catch {
-    return DEFAULT_REALTIME_MODEL;
-  }
+  const stored = readStored(MODEL_STORAGE_KEY);
+  return isRealtimeModel(stored) ? stored : DEFAULT_REALTIME_MODEL;
 }
 const noSubscription = () => () => {};
 
@@ -53,6 +88,10 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
   const [elapsed, setElapsed] = useState(0);
   const [showTextInput, setShowTextInput] = useState(false);
   const [savedDuration, setSavedDuration] = useState<number | null>(null);
+  const [micStream, setMicStream] = useState<MediaStream | null>(null);
+  const [mics, setMics] = useState<MediaDeviceInfo[]>([]);
+  const [micId, setMicId] = useState<string>("");
+  const [diag, setDiag] = useState<DiagEntry[]>([]);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const connRef = useRef<RealtimeConnection | null>(null);
@@ -63,6 +102,32 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
   const wrapUpSentRef = useRef(false);
   const finishingRef = useRef(false);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
+  const micStreamRef = useRef<MediaStream | null>(null);
+
+  const addDiag = useCallback((text: string) => {
+    const at = new Date().toLocaleTimeString("cs-CZ");
+    setDiag((prev) => [...prev.slice(-39), { at, text }]);
+  }, []);
+
+  // Opens (or switches) the microphone before the lesson so the level meter can show it works.
+  const openMic = useCallback(async (deviceId?: string) => {
+    micStreamRef.current?.getTracks().forEach((t) => t.stop());
+    const stream = await getMicrophone(deviceId || undefined);
+    micStreamRef.current = stream;
+    setMicStream(stream);
+    const actualId = stream.getAudioTracks()[0]?.getSettings().deviceId ?? "";
+    setMicId(actualId);
+    if (actualId) store(MIC_STORAGE_KEY, actualId);
+    setMics(await listMicrophones());
+    return stream;
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (!connRef.current) micStreamRef.current?.getTracks().forEach((t) => t.stop());
+    },
+    [],
+  );
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -109,6 +174,18 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
 
   const handleEvent = useCallback(
     (event: ServerEvent) => {
+      const hint = DIAG_EVENTS[event.type];
+      if (hint) {
+        const detail =
+          event.type === "error"
+            ? `: ${event.error?.message ?? ""}`
+            : event.type === "conversation.item.input_audio_transcription.failed"
+              ? `: ${event.error?.message ?? ""}`
+              : event.type === "conversation.item.input_audio_transcription.completed"
+                ? ` – „${String(event.transcript ?? "").slice(0, 60)}“`
+                : "";
+        addDiag(hint + detail);
+      }
       switch (event.type) {
         case "conversation.item.added":
         case "conversation.item.created": {
@@ -174,7 +251,7 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
           break;
       }
     },
-    [armIdleTimer, upsertMessage],
+    [addDiag, armIdleTimer, upsertMessage],
   );
 
   const finish = useCallback(async (status: "finished" | "failed" = "finished") => {
@@ -238,7 +315,8 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
               corrections: correctionsRef.current,
             }),
           ],
-          { type: "application/json" },
+          // text/plain: sendBeacon refuses non-CORS-safelisted types; the route parses JSON anyway
+          { type: "text/plain" },
         ),
       );
     };
@@ -260,6 +338,7 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
     void audioRef.current?.play().catch(() => {});
 
     try {
+      const stream = micStreamRef.current?.active ? micStreamRef.current : await openMic(readStored(MIC_STORAGE_KEY) ?? undefined);
       const res = await fetch("/api/lessons", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -279,6 +358,7 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
 
       const conn = await connectRealtime({
         clientSecret: data.clientSecret,
+        stream,
         audioElement: audioRef.current!,
         onEvent: handleEvent,
         onClose: () => {
@@ -389,6 +469,46 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
             Lektor začne sám – pozdraví vás a navrhne téma. Odpovídejte nahlas; když nebudete vědět, klidně řekněte
             slovo česky nebo počkejte, lektor napoví.
           </p>
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Mikrofon</p>
+            {micStream ? (
+              <>
+                {mics.length > 1 && (
+                  <select
+                    aria-label="Vstupní zařízení"
+                    value={micId}
+                    onChange={(e) => {
+                      void openMic(e.target.value).catch(() => setError("Toto zařízení nelze otevřít."));
+                    }}
+                    className={inputClass}
+                  >
+                    {mics.map((d, i) => (
+                      <option key={d.deviceId} value={d.deviceId}>
+                        {d.label || `Mikrofon ${i + 1}`}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <MicLevel stream={micStream} />
+                <p className="text-xs text-muted-foreground">
+                  Promluvte – zelený pruh se musí pohybovat. Pokud ne, vyberte jiný mikrofon.
+                </p>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  void openMic(readStored(MIC_STORAGE_KEY) ?? undefined).catch(() =>
+                    setError("Bez přístupu k mikrofonu to nepůjde. Povolte ho v prohlížeči (ikona vedle adresy)."),
+                  );
+                }}
+                className={buttonClass("secondary")}
+              >
+                Vyzkoušet mikrofon
+              </button>
+            )}
+          </div>
           <fieldset>
             <legend className="mb-2 text-sm font-medium">Kvalita hlasu</legend>
             <div className="grid gap-2 sm:grid-cols-2">
@@ -472,6 +592,19 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
         </div>
       )}
 
+      {diag.length > 0 && (
+        <details className="rounded-xl border border-line bg-surface p-3 text-sm">
+          <summary className="cursor-pointer text-muted-foreground">Diagnostika spojení</summary>
+          <ol className="mt-2 space-y-0.5 font-mono text-xs">
+            {diag.map((d, i) => (
+              <li key={i}>
+                <span className="text-muted-foreground">{d.at}</span> {d.text}
+              </li>
+            ))}
+          </ol>
+        </details>
+      )}
+
       {phase === "done" && (
         <div className="rounded-2xl border border-line bg-surface p-5">
           <p className="font-medium">Lekce je uložená</p>
@@ -502,6 +635,7 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
                 }`}
               />
               {status}
+              <MicLevel stream={muted || (pushToTalk && !recording) ? null : micStream} className="ml-auto w-24" />
             </div>
             {showTextInput && (
               <form

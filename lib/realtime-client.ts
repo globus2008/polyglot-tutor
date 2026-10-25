@@ -12,26 +12,39 @@ export type RealtimeConnection = {
 
 export class MicrophoneError extends Error {}
 
+export async function getMicrophone(deviceId?: string): Promise<MediaStream> {
+  const constraints = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      audio: deviceId ? { ...constraints, deviceId: { exact: deviceId } } : constraints,
+    });
+  } catch (error) {
+    // a remembered device may be gone; fall back to the default one
+    if (deviceId && error instanceof Error && error.name === "OverconstrainedError") return getMicrophone();
+    throw new MicrophoneError(error instanceof Error ? error.name : "mic");
+  }
+}
+
+export async function listMicrophones(): Promise<MediaDeviceInfo[]> {
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  return devices.filter((d) => d.kind === "audioinput" && d.deviceId);
+}
+
 export async function connectRealtime({
   clientSecret,
+  stream,
   audioElement,
   onEvent,
   onClose,
 }: {
   clientSecret: string;
+  stream: MediaStream;
   audioElement: HTMLAudioElement;
   onEvent: (event: ServerEvent) => void;
   onClose: () => void;
 }): Promise<RealtimeConnection> {
-  let stream: MediaStream;
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-    });
-  } catch (error) {
-    throw new MicrophoneError(error instanceof Error ? error.name : "mic");
-  }
   const mic = stream.getAudioTracks()[0];
+  if (!mic) throw new MicrophoneError("NoTrack");
 
   const pc = new RTCPeerConnection();
   pc.ontrack = (e) => {
@@ -54,7 +67,6 @@ export async function connectRealtime({
     if (closed) return;
     closed = true;
     dc.close();
-    pc.getSenders().forEach((s) => s.track?.stop());
     pc.close();
     stream.getTracks().forEach((t) => t.stop());
     audioElement.srcObject = null;

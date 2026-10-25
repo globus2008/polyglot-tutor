@@ -45,6 +45,14 @@ export async function POST(request: NextRequest) {
     resolveOpenAIKey(userId),
   ]);
   if (!profile) return fail(404, "Nejdřív si vyplňte profil pro tento jazyk.");
+
+  // lessons whose finish never arrived (crash, lost connection) must not block or skew history
+  await supabase
+    .from("lessons")
+    .update({ status: "failed", ended_at: new Date().toISOString() })
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .lt("started_at", new Date(Date.now() - (MAX_LESSON_MINUTES + 5) * 60_000).toISOString());
   if (!key) return fail(402, "Chybí OpenAI API klíč. Zadejte ho v Nastavení.");
 
   const tutorProfile: TutorProfile = {
