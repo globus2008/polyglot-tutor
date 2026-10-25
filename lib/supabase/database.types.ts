@@ -93,14 +93,14 @@ isOneToOne: false
                   ]
                 },"lessons": {
                   Row: {
-                    "corrections": NonNullable<Json>,"duration_s": number | null,"ended_at": string | null,"id": string,"language": string,"model": string | null,"plan": NonNullable<Json>,"started_at": string,"status": string,"summary": string | null,"topic_id": string | null,"transcript": NonNullable<Json>,"user_id": string
+                    "analysis": Json | null,"corrections": NonNullable<Json>,"duration_s": number | null,"ended_at": string | null,"id": string,"language": string,"model": string | null,"plan": NonNullable<Json>,"started_at": string,"status": string,"summary": string | null,"topic_id": string | null,"transcript": NonNullable<Json>,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "corrections"?: NonNullable<Json>,"duration_s"?: number | null,"ended_at"?: string | null,"id"?: string,"language": string,"model"?: string | null,"plan"?: NonNullable<Json>,"started_at"?: string,"status"?: string,"summary"?: string | null,"topic_id"?: string | null,"transcript"?: NonNullable<Json>,"user_id"?: string
+                    "analysis"?: Json | null,"corrections"?: NonNullable<Json>,"duration_s"?: number | null,"ended_at"?: string | null,"id"?: string,"language": string,"model"?: string | null,"plan"?: NonNullable<Json>,"started_at"?: string,"status"?: string,"summary"?: string | null,"topic_id"?: string | null,"transcript"?: NonNullable<Json>,"user_id"?: string
                   }
                   Update: {
-                    "corrections"?: NonNullable<Json>,"duration_s"?: number | null,"ended_at"?: string | null,"id"?: string,"language"?: string,"model"?: string | null,"plan"?: NonNullable<Json>,"started_at"?: string,"status"?: string,"summary"?: string | null,"topic_id"?: string | null,"transcript"?: NonNullable<Json>,"user_id"?: string
+                    "analysis"?: Json | null,"corrections"?: NonNullable<Json>,"duration_s"?: number | null,"ended_at"?: string | null,"id"?: string,"language"?: string,"model"?: string | null,"plan"?: NonNullable<Json>,"started_at"?: string,"status"?: string,"summary"?: string | null,"topic_id"?: string | null,"transcript"?: NonNullable<Json>,"user_id"?: string
                   }
                   Relationships: [
                     {
@@ -113,14 +113,14 @@ isOneToOne: false
                   ]
                 },"mistakes": {
                   Row: {
-                    "category": string,"corrected": string,"explanation_cs": string,"first_seen_at": string,"id": string,"language": string,"last_seen_at": string,"lesson_id": string | null,"mastered_at": string | null,"occurrences": number,"original": string,"user_id": string
+                    "category": string,"clean_lessons": number,"corrected": string,"explanation_cs": string,"first_seen_at": string,"id": string,"language": string,"last_seen_at": string,"lesson_id": string | null,"mastered_at": string | null,"occurrences": number,"original": string,"pattern_key": string | null,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "category": string,"corrected": string,"explanation_cs"?: string,"first_seen_at"?: string,"id"?: string,"language": string,"last_seen_at"?: string,"lesson_id"?: string | null,"mastered_at"?: string | null,"occurrences"?: number,"original": string,"user_id"?: string
+                    "category": string,"clean_lessons"?: number,"corrected": string,"explanation_cs"?: string,"first_seen_at"?: string,"id"?: string,"language": string,"last_seen_at"?: string,"lesson_id"?: string | null,"mastered_at"?: string | null,"occurrences"?: number,"original": string,"pattern_key"?: string | null,"user_id"?: string
                   }
                   Update: {
-                    "category"?: string,"corrected"?: string,"explanation_cs"?: string,"first_seen_at"?: string,"id"?: string,"language"?: string,"last_seen_at"?: string,"lesson_id"?: string | null,"mastered_at"?: string | null,"occurrences"?: number,"original"?: string,"user_id"?: string
+                    "category"?: string,"clean_lessons"?: number,"corrected"?: string,"explanation_cs"?: string,"first_seen_at"?: string,"id"?: string,"language"?: string,"last_seen_at"?: string,"lesson_id"?: string | null,"mastered_at"?: string | null,"occurrences"?: number,"original"?: string,"pattern_key"?: string | null,"user_id"?: string
                   }
                   Relationships: [
                     {

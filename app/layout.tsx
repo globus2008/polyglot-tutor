@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Polyglot Tutor",
-  description: "Konverzační AI lektor španělštiny a angličtiny, který si pamatuje vaše chyby a pokrok.",
+  description: "Konverzační AI lektor cizích jazyků, který si pamatuje vaše chyby a pokrok.",
 };
 
 export const viewport: Viewport = {

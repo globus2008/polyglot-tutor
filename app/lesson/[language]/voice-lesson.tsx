@@ -13,10 +13,17 @@ import {
   type ServerEvent,
 } from "@/lib/realtime-client";
 import { DEFAULT_REALTIME_MODEL, isRealtimeModel, REALTIME_MODELS, type Correction, type RealtimeModel } from "@/lib/tutor-prompt";
+import { LessonResult } from "./lesson-result";
 
 type Phase = "ready" | "connecting" | "live" | "saving" | "done" | "error";
 type Message = { id: string; role: "user" | "assistant"; text: string };
-type Lesson = { lessonId: string; turnMode: "auto" | "push_to_talk"; idlePromptS: number; maxMinutes: number };
+type Lesson = {
+  lessonId: string;
+  turnMode: "auto" | "push_to_talk";
+  idlePromptS: number;
+  maxMinutes: number;
+  topicCs: string | null;
+};
 type DiagEntry = { at: string; text: string };
 
 const MODEL_STORAGE_KEY = "polyglot.realtimeModel";
@@ -352,6 +359,7 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
         turnMode: data.turnMode,
         idlePromptS: data.idlePromptS,
         maxMinutes: data.maxMinutes,
+        topicCs: data.topicCs ?? null,
       };
       lessonRef.current = current;
       setLesson(current);
@@ -455,6 +463,7 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
             {flag}
           </span>
           {languageName}
+          {lesson?.topicCs && <span className="ml-2 font-normal text-muted-foreground">· {lesson.topicCs}</span>}
         </h1>
         {(phase === "live" || phase === "saving") && lesson && (
           <span className="font-mono text-sm tabular-nums text-muted-foreground">
@@ -605,25 +614,7 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
         </details>
       )}
 
-      {phase === "done" && (
-        <div className="rounded-2xl border border-line bg-surface p-5">
-          <p className="font-medium">Lekce je uložená</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {savedDuration !== null && `Délka ${formatTime(savedDuration)}. `}
-            {corrections.length > 0
-              ? `Lektor zaznamenal ${corrections.length} ${corrections.length === 1 ? "opravu" : corrections.length < 5 ? "opravy" : "oprav"}; příště se k nim vrátí.`
-              : "Bez zaznamenaných chyb, výborně!"}
-          </p>
-          <div className="mt-4 flex flex-wrap gap-3">
-            <button type="button" onClick={() => window.location.reload()} className={buttonClass()}>
-              Další lekce
-            </button>
-            <Link href="/" className={buttonClass("secondary")}>
-              Přehled
-            </Link>
-          </div>
-        </div>
-      )}
+      {phase === "done" && lesson && <LessonResult lessonId={lesson.lessonId} durationS={savedDuration} />}
 
       {phase === "live" && (
         <div className="fixed inset-x-0 bottom-0 border-t border-line bg-surface/95 backdrop-blur">

@@ -1,7 +1,11 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
+import { analyzeLesson } from "@/lib/analysis";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { MAX_LESSON_MINUTES } from "@/lib/tutor-prompt";
+
+// leaves room for the post-lesson analysis that runs after the response
+export const maxDuration = 120;
 
 const bodySchema = z.object({
   transcript: z
@@ -67,6 +71,8 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
     p_seconds: durationS,
     ...(plan.keySource === "household" && plan.householdId ? { p_household_id: plan.householdId } : {}),
   });
+
+  if (body.data.status === "finished") after(() => analyzeLesson(id));
 
   return NextResponse.json({ ok: true, durationS });
 }

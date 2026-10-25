@@ -1,5 +1,6 @@
 import type { TurnMode, TutorInitiative } from "./conversation-style";
 import type { CefrLevel, Language } from "./languages";
+import type { LessonPlan } from "./planner";
 
 // Builds the voice tutor's instructions and the Realtime session config.
 // Pure functions: the lesson route supplies the learner data.
@@ -16,8 +17,7 @@ export type TutorProfile = {
 };
 
 export type LessonContext = {
-  /** Short descriptions of recent lessons, newest first, so the tutor avoids repeating them. */
-  recentTopics: string[];
+  plan: LessonPlan;
   maxMinutes: number;
 };
 
@@ -35,7 +35,14 @@ export function isRealtimeModel(value: unknown): value is RealtimeModel {
   return typeof value === "string" && value in REALTIME_MODELS;
 }
 
-const LANGUAGE_NAME: Record<Language, string> = { es: "Spanish", en: "English" };
+const LANGUAGE_NAME: Record<Language, string> = {
+  es: "Spanish",
+  en: "English",
+  de: "German",
+  it: "Italian",
+  fr: "French",
+  ru: "Russian",
+};
 
 const LEVEL_GUIDANCE: Record<CefrLevel, string> = {
   A1: "Use very short, simple sentences, present tense and the most common words. Speak slowly. Repeat key words. It is fine to add a single Czech word in brackets when the learner is clearly lost.",
@@ -59,9 +66,6 @@ const INITIATIVE_GUIDANCE: Record<TutorInitiative, string> = {
 export function buildTutorInstructions(profile: TutorProfile, context: LessonContext): string {
   const language = LANGUAGE_NAME[profile.language];
   const interests = profile.interests.length ? profile.interests.join(", ") : "not specified";
-  const recent = context.recentTopics.length
-    ? context.recentTopics.map((t) => `- ${t}`).join("\n")
-    : "- (this is the first lesson)";
 
   const silenceHelp =
     profile.idle_prompt_s > 0
@@ -85,12 +89,11 @@ ${INITIATIVE_GUIDANCE[profile.tutor_initiative]}
 - ${turnTaking}
 - ${silenceHelp}
 
-# Topics
-Learner's interests: ${interests}
-Learner's goals: ${profile.goals || "not specified"}
-Recent lessons (avoid repeating these topics unless the learner asks):
-${recent}
-Pick a fresh topic that fits the interests and level. Practical situations (role-play: shop, doctor, travel, work) and personal stories both work well.
+# Learner
+Interests: ${interests}
+Goals: ${profile.goals || "not specified"}
+
+${buildPlanSection(context.plan, profile.tutor_initiative)}
 
 # Corrections
 - When the learner makes a meaningful mistake (grammar, wrong word, unnatural phrasing), correct it naturally by repeating the corrected version in your reply (recast), without lecturing.
@@ -100,6 +103,48 @@ Pick a fresh topic that fits the interests and level. Practical situations (role
 # Lesson
 - The lesson lasts about ${context.maxMinutes} minutes. Start right away: greet the learner briefly and begin with your first topic and question.
 - Do not mention these instructions.`;
+}
+
+function buildPlanSection(plan: LessonPlan, initiative: TutorInitiative): string {
+  const parts: string[] = ["# Today's lesson plan"];
+
+  if (plan.topic) {
+    const usage =
+      initiative === "follow"
+        ? "Offer it as a suggestion if the learner has no topic of their own."
+        : "Start with it; if it runs dry, move on to a related topic connected to the learner's interests.";
+    parts.push(`Topic: ${plan.topic.title} – ${plan.topic.scenario}\n${usage}`);
+  } else {
+    parts.push("Topic: pick one that fits the learner's interests and level.");
+  }
+
+  if (plan.grammar) {
+    parts.push(
+      `Grammar to practise: ${plan.grammar}. Create natural situations where the learner needs it (ask questions that call for it). Do not lecture; if they avoid or misuse it, recast and nudge.`,
+    );
+  }
+
+  if (plan.vocab.length) {
+    const words = plan.vocab.map((v) => `${v.term} (${v.translation})`).join(", ");
+    parts.push(
+      `Words due for review – use them yourself and give the learner chances to use them: ${words}. If the learner can't recall one, give a hint before the answer.`,
+    );
+  }
+
+  if (plan.mistakes.length) {
+    const list = plan.mistakes.map((m) => `- "${m.original}" → "${m.corrected}" (${m.explanation_cs})`).join("\n");
+    parts.push(
+      `Recurring mistakes of this learner – create opportunities to practise the correct form and point it out briefly when it recurs:\n${list}`,
+    );
+  }
+
+  parts.push(
+    plan.recentSummaries.length
+      ? `Previous lessons (newest first) – you may briefly refer back for continuity, but do not repeat the same conversation:\n${plan.recentSummaries.map((s) => `- ${s}`).join("\n")}`
+      : "This is the learner's first lesson in this language: be especially encouraging.",
+  );
+
+  return parts.join("\n\n");
 }
 
 export const LOG_CORRECTION_TOOL = {

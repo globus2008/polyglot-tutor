@@ -3,6 +3,7 @@ import { z } from "zod";
 import { resolveOpenAIKey } from "@/lib/api-keys";
 import type { TurnMode, TutorInitiative } from "@/lib/conversation-style";
 import { LANGUAGE_CODES, type CefrLevel } from "@/lib/languages";
+import { planLesson, type LessonPlan } from "@/lib/planner";
 import { createRealtimeClientSecret, describeOpenAIError, OpenAIError } from "@/lib/realtime";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -32,18 +33,37 @@ export async function POST(request: NextRequest) {
   const { language, model } = body.data;
   if (!isRealtimeModel(model)) return fail(400, "Neplatný model.");
 
-  const [{ data: profile }, { data: recent }, key] = await Promise.all([
-    supabase.from("learner_profiles").select("*").eq("user_id", userId).eq("language", language).maybeSingle(),
-    supabase
-      .from("lessons")
-      .select("summary, plan")
-      .eq("user_id", userId)
-      .eq("language", language)
-      .neq("status", "active")
-      .order("started_at", { ascending: false })
-      .limit(8),
-    resolveOpenAIKey(userId),
-  ]);
+  const [{ data: profile }, { data: recent }, { data: topics }, { data: mistakes }, { data: vocab }, key] =
+    await Promise.all([
+      supabase.from("learner_profiles").select("*").eq("user_id", userId).eq("language", language).maybeSingle(),
+      supabase
+        .from("lessons")
+        .select("topic_id, summary, plan")
+        .eq("user_id", userId)
+        .eq("language", language)
+        .in("status", ["finished", "analyzing", "analyzed"])
+        .order("started_at", { ascending: false })
+        .limit(20),
+      supabase.from("topics").select("id, cefr_level, title, title_cs, scenario, tags").eq("language", language),
+      supabase
+        .from("mistakes")
+        .select("id, pattern_key, original, corrected, explanation_cs, occurrences")
+        .eq("user_id", userId)
+        .eq("language", language)
+        .is("mastered_at", null)
+        .order("occurrences", { ascending: false })
+        .order("last_seen_at", { ascending: false })
+        .limit(10),
+      supabase
+        .from("vocab_items")
+        .select("id, term, translation")
+        .eq("user_id", userId)
+        .eq("language", language)
+        .lte("due", new Date().toISOString())
+        .order("due")
+        .limit(10),
+      resolveOpenAIKey(userId),
+    ]);
   if (!profile) return fail(404, "Nejdřív si vyplňte profil pro tento jazyk.");
 
   // lessons whose finish never arrived (crash, lost connection) must not block or skew history
@@ -62,8 +82,20 @@ export async function POST(request: NextRequest) {
     tutor_initiative: profile.tutor_initiative as TutorInitiative,
     turn_mode: profile.turn_mode as TurnMode,
   };
-  const recentTopics = (recent ?? []).map((l) => l.summary).filter((s): s is string => Boolean(s));
-  const instructions = buildTutorInstructions(tutorProfile, { recentTopics, maxMinutes: MAX_LESSON_MINUTES });
+  const plan = planLesson({
+    language,
+    level: tutorProfile.cefr_level,
+    interests: profile.interests,
+    topics: topics ?? [],
+    recentLessons: (recent ?? []).map((l) => ({
+      topic_id: l.topic_id,
+      summary: l.summary,
+      grammar: (l.plan as { lesson?: LessonPlan }).lesson?.grammar ?? null,
+    })),
+    openMistakes: mistakes ?? [],
+    dueVocab: vocab ?? [],
+  });
+  const instructions = buildTutorInstructions(tutorProfile, { plan, maxMinutes: MAX_LESSON_MINUTES });
   const session = buildRealtimeSession(tutorProfile, model, instructions);
 
   let secret;
@@ -76,7 +108,13 @@ export async function POST(request: NextRequest) {
 
   const { data: lesson, error } = await supabase
     .from("lessons")
-    .insert({ user_id: userId, language, model, plan: {
+    .insert({
+      user_id: userId,
+      language,
+      model,
+      topic_id: plan.topic?.id ?? null,
+      plan: {
+        lesson: plan,
         instructions,
         keySource: key.source,
         householdId: key.source === "household" ? key.householdId : null,
@@ -93,5 +131,6 @@ export async function POST(request: NextRequest) {
     turnMode: tutorProfile.turn_mode,
     idlePromptS: tutorProfile.idle_prompt_s,
     maxMinutes: MAX_LESSON_MINUTES,
+    topicCs: plan.topic?.title_cs ?? null,
   });
 }

@@ -1,6 +1,6 @@
 # Polyglot Tutor
 
-A voice conversation tutor for Spanish and English (explanations in Czech). It talks with you through the OpenAI Realtime API, corrects mistakes as you go and, unlike a plain chat, **remembers** what you have covered: topics, recurring mistakes and vocabulary due for review. Each lesson is planned from that history so conversations don't loop back to the same subjects.
+A voice conversation tutor for Spanish, English, German, Italian, French and Russian (explanations in Czech). It talks with you through the OpenAI Realtime API, corrects mistakes as you go and, unlike a plain chat, **remembers** what you have covered: topics, recurring mistakes and vocabulary due for review. Each lesson is planned from that history so conversations don't loop back to the same subjects.
 
 Built for slower and quieter speakers too: the tutor can lead the conversation and suggest topics, and you control how long it waits before taking the turn (or switch to push-to-talk so it never interrupts).
 
@@ -12,16 +12,17 @@ Each user brings their own OpenAI API key; a family can share one key.
 | --- | --- |
 | 1. Foundation – auth, schema + RLS, encrypted API keys, learner profiles | ✅ |
 | 2. Voice lesson – Realtime over WebRTC, live correction cards | ✅ |
-| 3. Memory – lesson analysis, mistakes, vocabulary, topic planner | ⏳ |
-| 4. Review & progress – spaced repetition, dashboard | |
+| 3. Memory – lesson analysis, mistakes, vocabulary, topic planner | ✅ |
+| 4. Review & progress – spaced repetition, dashboard | ⏳ |
 | 5. Households – invites, shared key, per-member limits | |
 | 6. PWA & deployment | |
 
 ## Stack
 
 - Next.js 16 (App Router, Cache Components) + TypeScript + Tailwind CSS 4
-- Supabase – magic-link auth, Postgres with row-level security
-- OpenAI Realtime API for voice
+- Supabase – email code / magic-link auth, Postgres with row-level security
+- OpenAI Realtime API for voice, `gpt-5.4-mini` (Responses API, structured output) for post-lesson analysis
+- ts-fsrs for vocabulary spaced repetition
 - Vitest
 
 ## Local development

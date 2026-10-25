@@ -1,6 +1,10 @@
 export const LANGUAGES = {
   es: { name: "Španělština", native: "Español", flag: "🇪🇸" },
   en: { name: "Angličtina", native: "English", flag: "🇬🇧" },
+  de: { name: "Němčina", native: "Deutsch", flag: "🇩🇪" },
+  it: { name: "Italština", native: "Italiano", flag: "🇮🇹" },
+  fr: { name: "Francouzština", native: "Français", flag: "🇫🇷" },
+  ru: { name: "Ruština", native: "Русский", flag: "🇷🇺" },
 } as const;
 
 export type Language = keyof typeof LANGUAGES;

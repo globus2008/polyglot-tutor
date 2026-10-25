@@ -47,7 +47,7 @@ export function ProfileForm({ initial, existingLanguages }: { initial?: Initial;
     <form action={action} className="space-y-8">
       <fieldset>
         <legend className="mb-3 font-medium">Jazyk</legend>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {LANGUAGE_CODES.map((code) => (
             <label
               key={code}
