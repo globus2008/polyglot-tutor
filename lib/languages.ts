@@ -1,10 +1,10 @@
 export const LANGUAGES = {
-  es: { name: "Španělština", native: "Español", flag: "🇪🇸" },
-  en: { name: "Angličtina", native: "English", flag: "🇬🇧" },
-  de: { name: "Němčina", native: "Deutsch", flag: "🇩🇪" },
-  it: { name: "Italština", native: "Italiano", flag: "🇮🇹" },
-  fr: { name: "Francouzština", native: "Français", flag: "🇫🇷" },
-  ru: { name: "Ruština", native: "Русский", flag: "🇷🇺" },
+  es: { name: "Španělština", native: "Español", flag: "🇪🇸", speech: "es-ES", adverb: "španělsky" },
+  en: { name: "Angličtina", native: "English", flag: "🇬🇧", speech: "en-GB", adverb: "anglicky" },
+  de: { name: "Němčina", native: "Deutsch", flag: "🇩🇪", speech: "de-DE", adverb: "německy" },
+  it: { name: "Italština", native: "Italiano", flag: "🇮🇹", speech: "it-IT", adverb: "italsky" },
+  fr: { name: "Francouzština", native: "Français", flag: "🇫🇷", speech: "fr-FR", adverb: "francouzsky" },
+  ru: { name: "Ruština", native: "Русский", flag: "🇷🇺", speech: "ru-RU", adverb: "rusky" },
 } as const;
 
 export type Language = keyof typeof LANGUAGES;

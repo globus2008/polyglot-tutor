@@ -13,8 +13,8 @@ Each user brings their own OpenAI API key; a family can share one key.
 | 1. Foundation – auth, schema + RLS, encrypted API keys, learner profiles | ✅ |
 | 2. Voice lesson – Realtime over WebRTC, live correction cards | ✅ |
 | 3. Memory – lesson analysis, mistakes, vocabulary, topic planner | ✅ |
-| 4. Review & progress – spaced repetition, dashboard | ⏳ |
-| 5. Households – invites, shared key, per-member limits | |
+| 4. Review & progress – spaced repetition, dashboard | ✅ |
+| 5. Households – invites, shared key, per-member limits | ⏳ |
 | 6. PWA & deployment | |
 
 ## Stack
