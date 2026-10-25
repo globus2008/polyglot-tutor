@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { SubmitButton } from "@/components/submit-button";
 import { FormMessage, inputClass } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/client";
@@ -10,6 +10,8 @@ import { saveNativeLanguage, type NativeState } from "./actions";
 export function NativeLanguageForm({ current }: { current: NativeLanguage }) {
   const { t, intl } = useI18n();
   const [state, action] = useActionState<NativeState, FormData>(saveNativeLanguage, { status: "idle" });
+  // controlled: React resets uncontrolled fields to their default after a form action
+  const [value, setValue] = useState(current);
 
   return (
     <form action={action} className="space-y-3">
@@ -17,7 +19,8 @@ export function NativeLanguageForm({ current }: { current: NativeLanguage }) {
         <select
           name="native_lang"
           aria-label={t.settings.nativeTitle}
-          defaultValue={current}
+          value={value}
+          onChange={(e) => setValue(e.target.value as NativeLanguage)}
           className={`${inputClass} sm:w-72`}
         >
           {[...NATIVE_LANGUAGE_CODES]

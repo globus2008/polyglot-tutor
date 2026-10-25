@@ -38,6 +38,7 @@ export async function saveNativeLanguage(_prev: NativeState, formData: FormData)
   const supabase = await createClient();
   const { error } = await supabase.from("user_settings").upsert({ user_id: user.id, native_lang: nativeLang });
   if (error) return { status: "error", message: t.onboarding.saveFailed };
+  revalidatePath("/[lang]/settings", "page");
   return { status: "saved", message: t.settings.nativeSaved };
 }
 
