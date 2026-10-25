@@ -99,14 +99,14 @@ isOneToOne: false
                   ]
                 },"learner_profiles": {
                   Row: {
-                    "cefr_level": string,"created_at": string,"end_of_turn_pause_ms": number,"goals": string,"idle_prompt_s": number,"interests": (string)[],"language": string,"native_lang": string,"turn_mode": string,"tutor_initiative": string,"updated_at": string,"user_id": string
+                    "cefr_level": string,"created_at": string,"end_of_turn_pause_ms": number,"goals": string,"idle_prompt_s": number,"interests": (string)[],"language": string,"turn_mode": string,"tutor_initiative": string,"updated_at": string,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "cefr_level": string,"created_at"?: string,"end_of_turn_pause_ms"?: number,"goals"?: string,"idle_prompt_s"?: number,"interests"?: (string)[],"language": string,"native_lang"?: string,"turn_mode"?: string,"tutor_initiative"?: string,"updated_at"?: string,"user_id"?: string
+                    "cefr_level": string,"created_at"?: string,"end_of_turn_pause_ms"?: number,"goals"?: string,"idle_prompt_s"?: number,"interests"?: (string)[],"language": string,"turn_mode"?: string,"tutor_initiative"?: string,"updated_at"?: string,"user_id"?: string
                   }
                   Update: {
-                    "cefr_level"?: string,"created_at"?: string,"end_of_turn_pause_ms"?: number,"goals"?: string,"idle_prompt_s"?: number,"interests"?: (string)[],"language"?: string,"native_lang"?: string,"turn_mode"?: string,"tutor_initiative"?: string,"updated_at"?: string,"user_id"?: string
+                    "cefr_level"?: string,"created_at"?: string,"end_of_turn_pause_ms"?: number,"goals"?: string,"idle_prompt_s"?: number,"interests"?: (string)[],"language"?: string,"turn_mode"?: string,"tutor_initiative"?: string,"updated_at"?: string,"user_id"?: string
                   }
                   Relationships: [
                     
@@ -184,6 +184,20 @@ isOneToOne: false
       referencedRelation: "households"
       referencedColumns: ["id"]
     }
+                  ]
+                },"user_settings": {
+                  Row: {
+                    "created_at": string,"native_lang": string,"updated_at": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"native_lang": string,"updated_at"?: string,"user_id"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"native_lang"?: string,"updated_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    
                   ]
                 },"vocab_items": {
                   Row: {

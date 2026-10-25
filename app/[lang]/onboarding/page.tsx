@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { getCurrentUser } from "@/lib/auth";
-import { getDictionary, getLocale } from "@/lib/i18n/server";
-import { isLanguage, isNativeLanguage } from "@/lib/languages";
+import { getDictionary } from "@/lib/i18n/server";
+import { isLanguage } from "@/lib/languages";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileForm } from "./profile-form";
 
@@ -27,26 +27,23 @@ export default async function OnboardingPage({ searchParams }: PageProps<"/[lang
 
 async function ProfileLoader({ searchParams }: Pick<PageProps<"/[lang]/onboarding">, "searchParams">) {
   const { language: requested } = await searchParams;
-  const [user, locale] = await Promise.all([getCurrentUser(), getLocale()]);
+  const user = await getCurrentUser();
   const supabase = await createClient();
   const { data: profiles } = await supabase
     .from("learner_profiles")
     .select(
-      "language, cefr_level, native_lang, interests, goals, tutor_initiative, turn_mode, end_of_turn_pause_ms, idle_prompt_s",
+      "language, cefr_level, interests, goals, tutor_initiative, turn_mode, end_of_turn_pause_ms, idle_prompt_s",
     )
     .eq("user_id", user.id);
 
   const language = isLanguage(requested) ? requested : undefined;
   const existing = profiles?.find((p) => p.language === language);
-  // new profiles explain in the language the learner already uses elsewhere, else the UI language
-  const nativeDefault = profiles?.find((p) => isNativeLanguage(p.native_lang))?.native_lang ?? locale;
 
   return (
     <ProfileForm
       key={language ?? "new"}
       initial={existing ?? (language ? { language } : undefined)}
       existingLanguages={(profiles ?? []).map((p) => p.language)}
-      nativeDefault={nativeDefault}
     />
   );
 }

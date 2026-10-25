@@ -71,6 +71,13 @@ describe("buildTutorInstructions", () => {
     expect(text).not.toContain("Czech");
   });
 
+  it("forbids drifting into English unless it is the target or native language", () => {
+    const text = buildTutorInstructions(profile, { plan: emptyPlan, maxMinutes: 15 });
+    expect(text).toContain("Never speak English");
+    const english = buildTutorInstructions({ ...profile, native_lang: "en" }, { plan: emptyPlan, maxMinutes: 15 });
+    expect(english).not.toContain("Never speak English");
+  });
+
   it("names the target language", () => {
     const text = buildTutorInstructions({ ...profile, language: "ru" }, { plan: emptyPlan, maxMinutes: 15 });
     expect(text).toContain("Russian conversation tutor");
@@ -78,6 +85,11 @@ describe("buildTutorInstructions", () => {
 });
 
 describe("buildRealtimeSession", () => {
+  it("asks for correction explanations in the native language", () => {
+    const session = buildRealtimeSession({ ...profile, native_lang: "de" }, "gpt-realtime-2.1-mini", "x");
+    expect(session.tools[0].parameters.properties.explanation.description).toContain("German");
+  });
+
   it("maps the pause and idle help onto server VAD", () => {
     const session = buildRealtimeSession(profile, "gpt-realtime-2.1-mini", "x");
     expect(session.audio.input.turn_detection).toMatchObject({

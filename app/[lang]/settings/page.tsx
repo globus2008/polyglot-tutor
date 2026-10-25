@@ -11,7 +11,9 @@ import { INTL_LOCALE, localePath } from "@/lib/i18n";
 import { getDictionary, getLocale } from "@/lib/i18n/server";
 import { isLanguage, LANGUAGE_CODES, LANGUAGES } from "@/lib/languages";
 import { createClient } from "@/lib/supabase/server";
+import { getNativeLanguage } from "@/lib/user-settings";
 import { deleteAccount, removeApiKey, saveApiKey } from "./actions";
+import { NativeLanguageForm } from "./native-language-form";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getDictionary()).meta.settings };
@@ -32,10 +34,11 @@ export default async function SettingsPage() {
 async function SettingsContent() {
   const [t, locale, user] = await Promise.all([getDictionary(), getLocale(), getCurrentUser()]);
   const supabase = await createClient();
-  const [keyInfo, resolved, { data: profiles }] = await Promise.all([
+  const [keyInfo, resolved, { data: profiles }, nativeLang] = await Promise.all([
     getKeyInfo({ kind: "user", id: user.id }),
     resolveOpenAIKey(user.id),
     supabase.from("learner_profiles").select("language, cefr_level, interests").eq("user_id", user.id).order("language"),
+    getNativeLanguage(supabase, user.id, locale),
   ]);
   const missingLanguages = LANGUAGE_CODES.filter((l) => !profiles?.some((p) => p.language === l));
   const dateFormat = new Intl.DateTimeFormat(INTL_LOCALE[locale], { dateStyle: "medium" });
@@ -71,6 +74,11 @@ async function SettingsContent() {
           </p>
         )}
         <ApiKeyForm hasKey={Boolean(keyInfo)} saveAction={saveApiKey} />
+      </Card>
+
+      <Card title={t.settings.nativeTitle}>
+        <p className="mb-4 text-sm text-muted-foreground">{t.settings.nativeIntro}</p>
+        <NativeLanguageForm current={nativeLang} />
       </Card>
 
       <Card title={t.settings.profiles}>

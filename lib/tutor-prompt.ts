@@ -56,6 +56,9 @@ const INITIATIVE_GUIDANCE: Record<TutorInitiative, string> = {
 export function buildTutorInstructions(profile: TutorProfile, context: LessonContext): string {
   const language = LANGUAGES[profile.language].english;
   const native = NATIVE_LANGUAGES[profile.native_lang];
+  // models drift into English when the learner struggles; forbid it unless it is one of the lesson's languages
+  const otherLanguages =
+    profile.language === "en" || profile.native_lang === "en" ? "" : " Never speak English or any other language.";
   const interests = profile.interests.length ? profile.interests.join(", ") : "not specified";
 
   const silenceHelp =
@@ -72,8 +75,9 @@ export function buildTutorInstructions(profile: TutorProfile, context: LessonCon
 
 # Language
 - Speak only ${language}, adapted to the level: ${LEVEL_GUIDANCE[profile.cefr_level]}
+- The only other language you may ever use is ${native}, and only for very brief explanations (of a mistake, a word or a task) when a ${language} explanation would not be understood.${otherLanguages}
 - If the learner speaks ${native} because they lack a word, give them the ${language} expression and invite them to use it.
-- Use ${native} only for very brief explanations when a ${language} explanation would not be understood.
+- If the learner uses any other language, do not switch to it; reply in ${language} (simpler if needed) and help them say it in ${language}.
 
 # Conversation style
 ${INITIATIVE_GUIDANCE[profile.tutor_initiative]}
@@ -89,7 +93,7 @@ ${buildPlanSection(context.plan, profile.tutor_initiative)}
 # Corrections
 - When the learner makes a meaningful mistake (grammar, wrong word, unnatural phrasing), correct it naturally by repeating the corrected version in your reply (recast), without lecturing.
 - For every such mistake also call the tool log_correction. Do not mention the tool. Do not log pure pronunciation issues or tiny slips that do not affect meaning. At most one call per mistake.
-- If the same mistake repeats, briefly point it out explicitly.
+- If the same mistake repeats, briefly point it out explicitly – in ${language} if the learner will understand it, otherwise in ${native}.
 
 # Lesson
 - The lesson lasts about ${context.maxMinutes} minutes. Start right away: greet the learner briefly and begin with your first topic and question.
@@ -138,29 +142,31 @@ function buildPlanSection(plan: LessonPlan, initiative: TutorInitiative): string
   return parts.join("\n\n");
 }
 
-export const LOG_CORRECTION_TOOL = {
-  type: "function",
-  name: "log_correction",
-  description:
-    "Record a mistake the learner made so it is shown on screen and remembered for future lessons. Call it silently alongside your spoken reply.",
-  parameters: {
-    type: "object",
-    properties: {
-      original: { type: "string", description: "What the learner said (the wrong part, in context)." },
-      corrected: { type: "string", description: "The corrected, natural version." },
-      category: {
-        type: "string",
-        enum: ["grammar", "vocabulary", "word_order", "verb_tense", "agreement", "preposition", "phrasing", "other"],
+export function logCorrectionTool(native: NativeLanguage) {
+  return {
+    type: "function",
+    name: "log_correction",
+    description:
+      "Record a mistake the learner made so it is shown on screen and remembered for future lessons. Call it silently alongside your spoken reply.",
+    parameters: {
+      type: "object",
+      properties: {
+        original: { type: "string", description: "What the learner said (the wrong part, in context)." },
+        corrected: { type: "string", description: "The corrected, natural version." },
+        category: {
+          type: "string",
+          enum: ["grammar", "vocabulary", "word_order", "verb_tense", "agreement", "preposition", "phrasing", "other"],
+        },
+        explanation: {
+          type: "string",
+          description: `One short sentence explaining the rule, in ${NATIVE_LANGUAGES[native]}.`,
+        },
       },
-      explanation: {
-        type: "string",
-        description: "One short sentence explaining the rule, in the learner's native language.",
-      },
+      required: ["original", "corrected", "category", "explanation"],
+      additionalProperties: false,
     },
-    required: ["original", "corrected", "category", "explanation"],
-    additionalProperties: false,
-  },
-} as const;
+  } as const;
+}
 
 export type Correction = {
   original: string;
@@ -196,7 +202,7 @@ export function buildRealtimeSession(profile: TutorProfile, model: RealtimeModel
       },
       output: { voice: "marin", speed: OUTPUT_SPEED[profile.cefr_level] },
     },
-    tools: [LOG_CORRECTION_TOOL],
+    tools: [logCorrectionTool(profile.native_lang)],
     tool_choice: "auto" as const,
   };
 }

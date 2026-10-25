@@ -4,10 +4,11 @@ import { resolveOpenAIKey } from "@/lib/api-keys";
 import { getHouseholdAllowance } from "@/lib/households";
 import { getRequestDictionary, getRequestLocale } from "@/lib/i18n/server";
 import type { TurnMode, TutorInitiative } from "@/lib/conversation-style";
-import { isNativeLanguage, LANGUAGE_CODES, type CefrLevel } from "@/lib/languages";
+import { LANGUAGE_CODES, type CefrLevel } from "@/lib/languages";
 import { planLesson, type LessonPlan } from "@/lib/planner";
 import { createRealtimeClientSecret, describeOpenAIError, OpenAIError } from "@/lib/realtime";
 import { createClient } from "@/lib/supabase/server";
+import { getNativeLanguage } from "@/lib/user-settings";
 import {
   buildRealtimeSession,
   buildTutorInstructions,
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
   const { language, model } = body.data;
   if (!isRealtimeModel(model)) return fail(400, t.errors.badRequest);
 
-  const [{ data: profile }, { data: recent }, { data: topics }, { data: mistakes }, { data: vocab }, key] =
+  const [{ data: profile }, { data: recent }, { data: topics }, { data: mistakes }, { data: vocab }, key, nativeLang] =
     await Promise.all([
       supabase.from("learner_profiles").select("*").eq("user_id", userId).eq("language", language).maybeSingle(),
       supabase
@@ -66,6 +67,7 @@ export async function POST(request: NextRequest) {
         .order("due")
         .limit(10),
       resolveOpenAIKey(userId),
+      getNativeLanguage(supabase, userId, locale),
     ]);
   if (!profile) return fail(404, t.errors.profileFirst);
 
@@ -92,7 +94,7 @@ export async function POST(request: NextRequest) {
     ...profile,
     language,
     cefr_level: profile.cefr_level as CefrLevel,
-    native_lang: isNativeLanguage(profile.native_lang) ? profile.native_lang : "en",
+    native_lang: nativeLang,
     tutor_initiative: profile.tutor_initiative as TutorInitiative,
     turn_mode: profile.turn_mode as TurnMode,
   };

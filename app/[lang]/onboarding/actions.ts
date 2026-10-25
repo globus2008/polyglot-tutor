@@ -6,7 +6,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { END_OF_TURN_PAUSE, IDLE_PROMPT_OPTIONS, TURN_MODE_CODES, TUTOR_INITIATIVE_CODES } from "@/lib/conversation-style";
 import { localePath } from "@/lib/i18n";
 import { getRequestDictionary, getRequestLocale } from "@/lib/i18n/server";
-import { CEFR_CODES, LANGUAGE_CODES, NATIVE_LANGUAGE_CODES } from "@/lib/languages";
+import { CEFR_CODES, LANGUAGE_CODES } from "@/lib/languages";
 import { createClient } from "@/lib/supabase/server";
 
 export type ProfileState = { status: "idle" | "error"; message?: string };
@@ -14,7 +14,6 @@ export type ProfileState = { status: "idle" | "error"; message?: string };
 const profileSchema = z.object({
   language: z.enum(LANGUAGE_CODES),
   cefr_level: z.enum(CEFR_CODES),
-  native_lang: z.enum(NATIVE_LANGUAGE_CODES),
   interests: z.array(z.string().trim().min(1).max(40)).max(20),
   goals: z.string().trim().max(1000),
   tutor_initiative: z.enum(TUTOR_INITIATIVE_CODES),
@@ -37,7 +36,6 @@ export async function saveProfile(_prev: ProfileState, formData: FormData): Prom
   const parsed = profileSchema.safeParse({
     language: formData.get("language"),
     cefr_level: formData.get("cefr_level"),
-    native_lang: formData.get("native_lang"),
     interests: [...new Set([...formData.getAll("interests").map(String), ...custom])],
     goals: String(formData.get("goals") ?? ""),
     tutor_initiative: formData.get("tutor_initiative"),
@@ -50,6 +48,8 @@ export async function saveProfile(_prev: ProfileState, formData: FormData): Prom
   const supabase = await createClient();
   const { error } = await supabase.from("learner_profiles").upsert({ user_id: user.id, ...parsed.data });
   if (error) return { status: "error", message: t.onboarding.saveFailed };
+  // first profile: explain in the UI language until the learner picks a native language in settings
+  await supabase.from("user_settings").upsert({ user_id: user.id, native_lang: locale }, { ignoreDuplicates: true });
 
   redirect(localePath(locale, "/"));
 }

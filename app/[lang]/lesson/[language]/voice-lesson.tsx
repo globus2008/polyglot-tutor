@@ -25,7 +25,8 @@ type Lesson = {
   maxMinutes: number;
   topic: string | null;
 };
-type DiagEntry = { at: string; text: string };
+// a correction is shown right below the learner's turn it belongs to
+type LoggedCorrection = Correction & { afterId: string | null };
 
 const MODEL_STORAGE_KEY = "polyglot.realtimeModel";
 const MIC_STORAGE_KEY = "polyglot.micDeviceId";
@@ -52,12 +53,16 @@ function readStoredModel(): RealtimeModel {
 }
 const noSubscription = () => () => {};
 
+function toSaved({ original, corrected, explanation, category }: LoggedCorrection): Correction {
+  return { original, corrected, explanation, category };
+}
+
 function formatTime(seconds: number) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
 export function VoiceLesson({ language, languageName, flag }: { language: string; languageName: string; flag: string }) {
-  const { t, intl, path } = useI18n();
+  const { t, path } = useI18n();
   const [phase, setPhase] = useState<Phase>("ready");
   const [error, setError] = useState<string | null>(null);
   const storedModel = useSyncExternalStore(noSubscription, readStoredModel, () => DEFAULT_REALTIME_MODEL);
@@ -65,7 +70,7 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
   const model = chosenModel ?? storedModel;
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [corrections, setCorrections] = useState<Correction[]>([]);
+  const [corrections, setCorrections] = useState<LoggedCorrection[]>([]);
   const [tutorSpeaking, setTutorSpeaking] = useState(false);
   const [userSpeaking, setUserSpeaking] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -76,23 +81,17 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
   const [micStream, setMicStream] = useState<MediaStream | null>(null);
   const [mics, setMics] = useState<MediaDeviceInfo[]>([]);
   const [micId, setMicId] = useState<string>("");
-  const [diag, setDiag] = useState<DiagEntry[]>([]);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const connRef = useRef<RealtimeConnection | null>(null);
   const lessonRef = useRef<Lesson | null>(null);
   const messagesRef = useRef<Message[]>([]);
-  const correctionsRef = useRef<Correction[]>([]);
+  const correctionsRef = useRef<LoggedCorrection[]>([]);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapUpSentRef = useRef(false);
   const finishingRef = useRef(false);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
-
-  const addDiag = useCallback((text: string) => {
-    const at = new Date().toLocaleTimeString(intl);
-    setDiag((prev) => [...prev.slice(-39), { at, text }]);
-  }, [intl]);
 
   // Opens (or switches) the microphone before the lesson so the level meter can show it works.
   const openMic = useCallback(async (deviceId?: string) => {
@@ -121,7 +120,7 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
 
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages]);
+  }, [messages, corrections]);
 
   const upsertMessage = useCallback((id: string, role: Message["role"], update: (text: string) => string) => {
     setMessages((prev) => {
@@ -159,19 +158,6 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
 
   const handleEvent = useCallback(
     (event: ServerEvent) => {
-      // events worth showing in the diagnostics panel
-      const hint = t.lesson.diag[event.type];
-      if (hint) {
-        const detail =
-          event.type === "error"
-            ? `: ${event.error?.message ?? ""}`
-            : event.type === "conversation.item.input_audio_transcription.failed"
-              ? `: ${event.error?.message ?? ""}`
-              : event.type === "conversation.item.input_audio_transcription.completed"
-                ? ` – "${String(event.transcript ?? "").slice(0, 60)}"`
-                : "";
-        addDiag(hint + detail);
-      }
       switch (event.type) {
         case "conversation.item.added":
         case "conversation.item.created": {
@@ -217,7 +203,10 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
           for (const call of calls) {
             try {
               const args = JSON.parse(call.arguments ?? "{}") as Correction;
-              if (args.original && args.corrected) setCorrections((prev) => [...prev, args]);
+              if (args.original && args.corrected) {
+                const afterId = messagesRef.current.findLast((m) => m.role === "user")?.id ?? null;
+                setCorrections((prev) => [...prev, { ...args, afterId }]);
+              }
             } catch {
               // ignore malformed arguments
             }
@@ -237,7 +226,7 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
           break;
       }
     },
-    [addDiag, armIdleTimer, upsertMessage, t],
+    [armIdleTimer, upsertMessage],
   );
 
   const finish = useCallback(async (status: "finished" | "failed" = "finished") => {
@@ -256,7 +245,7 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
         body: JSON.stringify({
           status,
           transcript: messagesRef.current.filter((m) => m.text.trim()).map(({ role, text }) => ({ role, text })),
-          corrections: correctionsRef.current,
+          corrections: correctionsRef.current.map(toSaved),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -298,7 +287,7 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
             JSON.stringify({
               status: "finished",
               transcript: messagesRef.current.filter((m) => m.text.trim()).map(({ role, text }) => ({ role, text })),
-              corrections: correctionsRef.current,
+              corrections: correctionsRef.current.map(toSaved),
             }),
           ],
           // text/plain: sendBeacon refuses non-CORS-safelisted types; the route parses JSON anyway
@@ -423,6 +412,28 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
     input.value = "";
   }
 
+  const visibleMessages = messages.filter((m) => m.text.trim());
+  const visibleIds = new Set(visibleMessages.map((m) => m.id));
+  const correctionsAfter = (id: string) => corrections.filter((c) => c.afterId === id);
+  const renderCorrection = (c: LoggedCorrection) => (
+    <div
+      key={corrections.indexOf(c)}
+      role="note"
+      aria-label={t.lesson.correction}
+      className="ml-auto max-w-[85%] rounded-xl border border-line bg-surface p-3 text-sm"
+    >
+      <p>
+        <span className="text-danger line-through decoration-1">{c.original}</span>
+        <span aria-hidden className="mx-1.5 text-muted-foreground">→</span>
+        <span className="font-medium text-success">{c.corrected}</span>
+      </p>
+      <p className="mt-1 text-muted-foreground">
+        {c.explanation}
+        <span className="ml-1.5 text-xs uppercase tracking-wide">· {t.lesson.categories[c.category] ?? c.category}</span>
+      </p>
+    </div>
+  );
+
   const pushToTalk = lesson?.turnMode === "push_to_talk";
   const status = tutorSpeaking
     ? t.lesson.status.tutorSpeaking
@@ -532,58 +543,26 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
       )}
 
       {(phase === "live" || phase === "saving" || phase === "done") && (
-        <div className="grid gap-4 md:grid-cols-[1fr_18rem]">
-          <section aria-label={t.lesson.transcript} className="space-y-3">
-            {messages.length === 0 && phase === "live" && (
-              <p className="text-muted-foreground">{t.lesson.preparing}</p>
-            )}
-            {messages
-              .filter((m) => m.text.trim())
-              .map((m) => (
-                <div
-                  key={m.id}
-                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
-                    m.role === "assistant"
-                      ? "bg-surface border border-line"
-                      : "ml-auto bg-accent text-white"
-                  }`}
-                >
-                  {m.text}
-                </div>
-              ))}
-            <div ref={transcriptEndRef} />
-          </section>
-
-          <aside aria-label={t.lesson.corrections(corrections.length)} className="space-y-3">
-            <h2 className="text-sm font-medium text-muted-foreground">{t.lesson.corrections(corrections.length)}</h2>
-            {corrections.length === 0 && (
-              <p className="text-sm text-muted-foreground">{t.lesson.noCorrections}</p>
-            )}
-            {corrections.map((c, i) => (
-              <div key={i} className="rounded-xl border border-line bg-surface p-3 text-sm">
-                <p className="text-danger line-through decoration-1">{c.original}</p>
-                <p className="font-medium text-success">{c.corrected}</p>
-                <p className="mt-1 text-muted-foreground">{c.explanation}</p>
-                <p className="mt-1 text-xs uppercase tracking-wide text-muted-foreground">
-                  {t.lesson.categories[c.category] ?? c.category}
-                </p>
+        <section aria-label={t.lesson.transcript} className="space-y-3">
+          {messages.length === 0 && phase === "live" && (
+            <p className="text-muted-foreground">{t.lesson.preparing}</p>
+          )}
+          {visibleMessages.map((m) => (
+            <div key={m.id} className="space-y-2">
+              <div
+                className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
+                  m.role === "assistant" ? "bg-surface border border-line" : "ml-auto bg-accent text-white"
+                }`}
+              >
+                {m.text}
               </div>
-            ))}
-          </aside>
-        </div>
-      )}
-
-      {diag.length > 0 && (
-        <details className="rounded-xl border border-line bg-surface p-3 text-sm">
-          <summary className="cursor-pointer text-muted-foreground">{t.lesson.diagnostics}</summary>
-          <ol className="mt-2 space-y-0.5 font-mono text-xs">
-            {diag.map((d, i) => (
-              <li key={i}>
-                <span className="text-muted-foreground">{d.at}</span> {d.text}
-              </li>
-            ))}
-          </ol>
-        </details>
+              {correctionsAfter(m.id).map(renderCorrection)}
+            </div>
+          ))}
+          {/* corrections whose turn has no text yet (e.g. transcription still running) */}
+          {corrections.filter((c) => !visibleIds.has(c.afterId ?? "")).map(renderCorrection)}
+          <div ref={transcriptEndRef} />
+        </section>
       )}
 
       {phase === "done" && lesson && <LessonResult lessonId={lesson.lessonId} durationS={savedDuration} />}

@@ -11,7 +11,8 @@ export async function GET() {
   if (!userId) return NextResponse.json({ error: t.errors.notSignedIn }, { status: 401 });
 
   // RLS limits every query to the caller's own rows
-  const [profiles, lessons, mistakes, vocabulary, usage, membership, apiKey] = await Promise.all([
+  const [settings, profiles, lessons, mistakes, vocabulary, usage, membership, apiKey] = await Promise.all([
+    supabase.from("user_settings").select("*").eq("user_id", userId).maybeSingle(),
     supabase.from("learner_profiles").select("*").eq("user_id", userId),
     supabase.from("lessons").select("*").eq("user_id", userId).order("started_at"),
     supabase.from("mistakes").select("*").eq("user_id", userId),
@@ -26,6 +27,7 @@ export async function GET() {
     account: { id: userId, email: auth.claims.email ?? null },
     // the key itself stays encrypted on the server
     openai_api_key: apiKey ? { last4: apiKey.last4, updated_at: apiKey.updatedAt } : null,
+    settings: settings.data,
     learner_profiles: profiles.data ?? [],
     lessons: lessons.data ?? [],
     mistakes: mistakes.data ?? [],

@@ -11,13 +11,12 @@ import {
   TUTOR_INITIATIVE_CODES,
 } from "@/lib/conversation-style";
 import { useI18n } from "@/lib/i18n/client";
-import { CEFR_CODES, INTEREST_KEYS, LANGUAGE_CODES, LANGUAGES, NATIVE_LANGUAGE_CODES } from "@/lib/languages";
+import { CEFR_CODES, INTEREST_KEYS, LANGUAGE_CODES, LANGUAGES } from "@/lib/languages";
 import { saveProfile, type ProfileState } from "./actions";
 
 type Initial = {
   language: string;
   cefr_level?: string;
-  native_lang?: string;
   interests?: string[];
   goals?: string;
   tutor_initiative?: string;
@@ -34,11 +33,9 @@ const optionCard =
 export function ProfileForm({
   initial,
   existingLanguages,
-  nativeDefault,
 }: {
   initial?: Initial;
   existingLanguages: string[];
-  nativeDefault: string;
 }) {
   const { t, intl } = useI18n();
   const [state, action] = useActionState<ProfileState, FormData>(saveProfile, { status: "idle" });
@@ -105,26 +102,6 @@ export function ProfileForm({
         </div>
         <p className="mt-2 text-sm text-muted-foreground">{t.onboarding.levelHint}</p>
       </fieldset>
-
-      <div>
-        <label className="mb-3 block font-medium" htmlFor="native_lang">
-          {t.onboarding.nativeLanguage}
-        </label>
-        <select
-          id="native_lang"
-          name="native_lang"
-          defaultValue={initial?.native_lang ?? nativeDefault}
-          className={`${inputClass} sm:w-72`}
-        >
-          {[...NATIVE_LANGUAGE_CODES]
-            .sort((a, b) => t.nativeLanguages[a].localeCompare(t.nativeLanguages[b], intl))
-            .map((code) => (
-              <option key={code} value={code}>
-                {t.nativeLanguages[code]}
-              </option>
-            ))}
-        </select>
-      </div>
 
       <fieldset>
         <legend className="mb-3 font-medium">{t.onboarding.interests}</legend>

@@ -1,11 +1,12 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { resolveOpenAIKey } from "./api-keys";
-import { CEFR_CODES, LANGUAGES, NATIVE_LANGUAGES, isNativeLanguage, type Language, type NativeLanguage } from "./languages";
+import { CEFR_CODES, LANGUAGES, NATIVE_LANGUAGES, type Language, type NativeLanguage } from "./languages";
 import type { LessonPlan } from "./planner";
 import { newCard, Rating, review } from "./srs";
 import { createAdminClient } from "./supabase/server";
 import type { Correction } from "./tutor-prompt";
+import { getNativeLanguage } from "./user-settings";
 
 // Post-lesson analysis: a text model turns the transcript into structured memory
 // (mistake patterns, vocabulary, summary), which the planner uses for the next lesson.
@@ -202,11 +203,11 @@ export async function analyzeLesson(lessonId: string): Promise<boolean> {
       return true;
     }
 
-    const [key, { data: profile }, { data: openMistakes }] = await Promise.all([
+    const [key, { data: profile }, { data: openMistakes }, native] = await Promise.all([
       resolveOpenAIKey(lesson.user_id),
       db
         .from("learner_profiles")
-        .select("cefr_level, native_lang")
+        .select("cefr_level")
         .eq("user_id", lesson.user_id)
         .eq("language", language)
         .maybeSingle(),
@@ -215,6 +216,7 @@ export async function analyzeLesson(lessonId: string): Promise<boolean> {
         .select("id, pattern_key, occurrences, clean_lessons")
         .eq("user_id", lesson.user_id)
         .eq("language", language),
+      getNativeLanguage(db, lesson.user_id, "en"),
     ]);
     if (!key) throw new Error("No API key");
 
@@ -223,7 +225,7 @@ export async function analyzeLesson(lessonId: string): Promise<boolean> {
       lesson.user_id,
       buildPrompt({
         language,
-        native: isNativeLanguage(profile?.native_lang) ? profile.native_lang : "en",
+        native,
         level: profile?.cefr_level ?? "unknown",
         plan,
         openPatternKeys: (openMistakes ?? []).map((m) => m.pattern_key).filter((k): k is string => Boolean(k)),

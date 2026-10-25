@@ -6,6 +6,7 @@ import { checkNewKey, deleteKey, saveKey } from "@/lib/api-keys";
 import { getCurrentUser } from "@/lib/auth";
 import { localePath } from "@/lib/i18n";
 import { getRequestDictionary, getRequestLocale } from "@/lib/i18n/server";
+import { isNativeLanguage } from "@/lib/languages";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 
 export type KeyState = { status: "idle" | "saved" | "error"; message?: string };
@@ -25,6 +26,19 @@ export async function removeApiKey() {
   const user = await getCurrentUser();
   await deleteKey({ kind: "user", id: user.id });
   revalidatePath("/[lang]/settings", "page");
+}
+
+export type NativeState = { status: "idle" | "saved" | "error"; message?: string };
+
+export async function saveNativeLanguage(_prev: NativeState, formData: FormData): Promise<NativeState> {
+  const [user, t] = await Promise.all([getCurrentUser(), getRequestDictionary()]);
+  const nativeLang = formData.get("native_lang");
+  if (!isNativeLanguage(nativeLang)) return { status: "error", message: t.onboarding.invalid };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("user_settings").upsert({ user_id: user.id, native_lang: nativeLang });
+  if (error) return { status: "error", message: t.onboarding.saveFailed };
+  return { status: "saved", message: t.settings.nativeSaved };
 }
 
 /** Deletes the auth user; every table cascades from auth.users, so all data goes with it. */
