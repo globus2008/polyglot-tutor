@@ -142,7 +142,13 @@ Transcript:
 ${lines}`;
 }
 
-async function callModel(apiKey: string, userId: string, prompt: string): Promise<LessonAnalysis> {
+/** One structured-output call to the text model; returns the parsed JSON. */
+export async function callTextModel<T>(
+  apiKey: string,
+  userId: string,
+  prompt: string,
+  format: { name: string; schema: object; system: string },
+): Promise<T> {
   const res = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
@@ -153,11 +159,11 @@ async function callModel(apiKey: string, userId: string, prompt: string): Promis
     body: JSON.stringify({
       model: ANALYSIS_MODEL,
       input: [
-        { role: "system", content: "You are an experienced language teacher who writes precise, encouraging feedback." },
+        { role: "system", content: format.system },
         { role: "user", content: prompt },
       ],
       reasoning: { effort: "low" },
-      text: { format: { type: "json_schema", name: "lesson_analysis", strict: true, schema } },
+      text: { format: { type: "json_schema", name: format.name, strict: true, schema: format.schema } },
     }),
     signal: AbortSignal.timeout(90_000),
   });
@@ -166,8 +172,8 @@ async function callModel(apiKey: string, userId: string, prompt: string): Promis
   const text = (body?.output ?? [])
     .flatMap((o: { content?: { type: string; text?: string }[] }) => o.content ?? [])
     .find((c: { type: string }) => c.type === "output_text")?.text;
-  if (!text) throw new Error("Empty analysis response");
-  return JSON.parse(text) as LessonAnalysis;
+  if (!text) throw new Error("Empty model response");
+  return JSON.parse(text) as T;
 }
 
 /**
@@ -218,7 +224,7 @@ export async function analyzeLesson(lessonId: string): Promise<boolean> {
     ]);
     if (!key) throw new Error("No API key");
 
-    const analysis = await callModel(
+    const analysis = await callTextModel<LessonAnalysis>(
       key.key,
       lesson.user_id,
       buildPrompt({
@@ -230,9 +236,14 @@ export async function analyzeLesson(lessonId: string): Promise<boolean> {
         corrections: (lesson.corrections as Correction[]) ?? [],
         transcript,
       }),
+      {
+        name: "lesson_analysis",
+        schema,
+        system: "You are an experienced language teacher who writes precise, encouraging feedback.",
+      },
     );
 
-    const stored = await applyAnalysis(lesson.user_id, language, lessonId, plan, analysis, openMistakes ?? []);
+    const stored = await applyAnalysis(lesson.user_id, language, native, lessonId, plan, analysis, openMistakes ?? []);
     await db
       .from("lessons")
       .update({ status: "analyzed", summary: analysis.summary, analysis: stored })
@@ -251,6 +262,7 @@ export async function analyzeLesson(lessonId: string): Promise<boolean> {
 async function applyAnalysis(
   userId: string,
   language: Language,
+  native: NativeLanguage,
   lessonId: string,
   plan: LessonPlan | undefined,
   analysis: LessonAnalysis,
@@ -273,6 +285,7 @@ async function applyAnalysis(
       corrected: m.corrected,
       category: m.category,
       explanation: m.explanation,
+      explanation_lang: native,
       lesson_id: lessonId,
       last_seen_at: now,
       clean_lessons: 0,
@@ -318,6 +331,7 @@ async function applyAnalysis(
       lesson_id: lessonId,
       term: v.term.trim(),
       translation: v.translation,
+      translation_lang: native,
       example: v.example,
       ...newCard(),
     }));

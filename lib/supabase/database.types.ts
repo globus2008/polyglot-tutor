@@ -133,14 +133,14 @@ isOneToOne: false
                   ]
                 },"mistakes": {
                   Row: {
-                    "category": string,"clean_lessons": number,"corrected": string,"explanation": string,"first_seen_at": string,"id": string,"language": string,"last_seen_at": string,"lesson_id": string | null,"mastered_at": string | null,"occurrences": number,"original": string,"pattern_key": string | null,"user_id": string
+                    "category": string,"clean_lessons": number,"corrected": string,"explanation": string,"explanation_lang": string | null,"first_seen_at": string,"id": string,"language": string,"last_seen_at": string,"lesson_id": string | null,"mastered_at": string | null,"occurrences": number,"original": string,"pattern_key": string | null,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "category": string,"clean_lessons"?: number,"corrected": string,"explanation"?: string,"first_seen_at"?: string,"id"?: string,"language": string,"last_seen_at"?: string,"lesson_id"?: string | null,"mastered_at"?: string | null,"occurrences"?: number,"original": string,"pattern_key"?: string | null,"user_id"?: string
+                    "category": string,"clean_lessons"?: number,"corrected": string,"explanation"?: string,"explanation_lang"?: string | null,"first_seen_at"?: string,"id"?: string,"language": string,"last_seen_at"?: string,"lesson_id"?: string | null,"mastered_at"?: string | null,"occurrences"?: number,"original": string,"pattern_key"?: string | null,"user_id"?: string
                   }
                   Update: {
-                    "category"?: string,"clean_lessons"?: number,"corrected"?: string,"explanation"?: string,"first_seen_at"?: string,"id"?: string,"language"?: string,"last_seen_at"?: string,"lesson_id"?: string | null,"mastered_at"?: string | null,"occurrences"?: number,"original"?: string,"pattern_key"?: string | null,"user_id"?: string
+                    "category"?: string,"clean_lessons"?: number,"corrected"?: string,"explanation"?: string,"explanation_lang"?: string | null,"first_seen_at"?: string,"id"?: string,"language"?: string,"last_seen_at"?: string,"lesson_id"?: string | null,"mastered_at"?: string | null,"occurrences"?: number,"original"?: string,"pattern_key"?: string | null,"user_id"?: string
                   }
                   Relationships: [
                     {
@@ -201,14 +201,14 @@ isOneToOne: false
                   ]
                 },"vocab_items": {
                   Row: {
-                    "created_at": string,"due": string,"example": string,"fsrs": NonNullable<Json>,"id": string,"language": string,"lesson_id": string | null,"term": string,"translation": string,"user_id": string
+                    "created_at": string,"due": string,"example": string,"fsrs": NonNullable<Json>,"id": string,"language": string,"lesson_id": string | null,"term": string,"translation": string,"translation_lang": string | null,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"due"?: string,"example"?: string,"fsrs"?: NonNullable<Json>,"id"?: string,"language": string,"lesson_id"?: string | null,"term": string,"translation": string,"user_id"?: string
+                    "created_at"?: string,"due"?: string,"example"?: string,"fsrs"?: NonNullable<Json>,"id"?: string,"language": string,"lesson_id"?: string | null,"term": string,"translation": string,"translation_lang"?: string | null,"user_id"?: string
                   }
                   Update: {
-                    "created_at"?: string,"due"?: string,"example"?: string,"fsrs"?: NonNullable<Json>,"id"?: string,"language"?: string,"lesson_id"?: string | null,"term"?: string,"translation"?: string,"user_id"?: string
+                    "created_at"?: string,"due"?: string,"example"?: string,"fsrs"?: NonNullable<Json>,"id"?: string,"language"?: string,"lesson_id"?: string | null,"term"?: string,"translation"?: string,"translation_lang"?: string | null,"user_id"?: string
                   }
                   Relationships: [
                     {
