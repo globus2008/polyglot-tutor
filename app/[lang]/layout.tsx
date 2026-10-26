@@ -47,21 +47,20 @@ export default async function RootLayout({ children }: LayoutProps<"/[lang]">) {
   const [locale, t] = await Promise.all([getLocale(), getDictionary()]);
   return (
     <html lang={locale} className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col font-sans">
+      <body className="flex min-h-full flex-col overflow-x-clip font-sans">
         <I18nProvider locale={locale}>
           <header className="border-b border-line bg-surface">
-            <div className="mx-auto box-content flex h-14 w-full max-w-3xl items-center justify-between gap-3 px-4 pt-[env(safe-area-inset-top)]">
-              <Link href={localePath(locale, "/")} className="shrink-0 font-semibold tracking-tight">
-                Polyglot <span className="text-accent">Tutor</span>
+            {/* on phones the navigation wraps into a second row instead of overflowing the screen */}
+            <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center gap-x-3 px-4 pt-[env(safe-area-inset-top)]">
+              <Link href={localePath(locale, "/")} className="mr-auto flex h-14 shrink-0 items-center font-semibold tracking-tight">
+                Polyglot <span className="ml-1 text-accent">Tutor</span>
               </Link>
-              <div className="flex items-center gap-3">
-                <Suspense>
-                  <UserMenu />
-                </Suspense>
-                <Suspense>
-                  <LocaleSwitcher />
-                </Suspense>
-              </div>
+              <Suspense>
+                <UserMenu />
+              </Suspense>
+              <Suspense>
+                <LocaleSwitcher />
+              </Suspense>
             </div>
           </header>
           <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">{children}</main>

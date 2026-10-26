@@ -53,6 +53,7 @@ export const en = {
     ru: "in Russian",
   },
   cefr: {
+    A0: "Complete beginner – first words and phrases, explained in your language; good for children too",
     A1: "Beginner – greetings, introducing yourself, ordering",
     A2: "Elementary – everyday situations in simple sentences",
     B1: "Intermediate – getting by when travelling, describing experiences",
@@ -130,6 +131,8 @@ export const en = {
     language: "Language",
     profileExists: "profile exists – you'll edit it",
     level: "Current level",
+    forChild: "Lessons for a child",
+    forChildHint: "The tutor is playful, praises a lot and picks child-friendly topics and games.",
     levelHint: "Not sure? Pick the lower one – the tutor refines your level after lessons.",
     interests: "Interests",
     customInterests: "Other interests (comma-separated)",
@@ -175,6 +178,11 @@ export const en = {
     profiles: "Language profiles",
     edit: "Edit",
     addLanguage: "Add language",
+    spendTitle: "Usage this month",
+    spend: (minutes: number, cost: string) => `Your lessons this month: ${minutes} min ≈ ${cost}`,
+    spendNoteBefore:
+      "A rough estimate from lesson length and voice quality. The exact amount OpenAI charged is at ",
+    spendNoteAfter: ".",
     signedInAs: (email: string) => `Signed in as ${email}`,
   },
   dashboard: {
@@ -188,6 +196,8 @@ export const en = {
     minutes: "minutes",
     words: (n: number) => plural(n, "word", "words"),
     mastered: "mastered",
+    estimates: (levels: string) => `Level estimates from recent lessons: ${levels}.`,
+    estimatesHint: "The tutor offers a change of level when three analysed lessons in a row agree.",
     suggestion: (level: string) => `Based on your recent lessons, the tutor estimates your level at ${level}.`,
     changeTo: (level: string) => `Change to ${level}`,
     changing: "Changing…",
@@ -206,6 +216,14 @@ export const en = {
     testMic: "Test microphone",
     micDenied: "This won't work without the microphone. Allow it in the browser (icon next to the address).",
     deviceFailed: "This device can't be opened.",
+    modeLegend: "Lesson type",
+    modes: {
+      conversation: { label: "Conversation", description: "Talk about your topics; grammar is practised on the side." },
+      grammar: { label: "Grammar", description: "The tutor explains one rule and drills it with you step by step." },
+    },
+    carTitle: "In the car or hands-free",
+    carHint:
+      "Connect the phone to the car (Bluetooth) before starting and pick the car's hands-free as the microphone if it is listed. The screen stays on during the lesson and the tutor says every correction out loud.",
     quality: "Voice quality",
     models: {
       "gpt-realtime-2.1-mini": { label: "Economy", description: "Cheaper, fine for everyday practice." },
@@ -227,6 +245,7 @@ export const en = {
       agreement: "agreement",
       preposition: "prepositions",
       phrasing: "phrasing",
+      pronunciation: "pronunciation",
       other: "other",
     } as Record<string, string>,
     status: {
@@ -331,6 +350,9 @@ export const en = {
     remove: "Remove",
     removeConfirm: "Remove this member from the family?",
     defaultLimit: "Default daily limit per member:",
+    ownKey: "uses their own key – their minutes aren't counted here",
+    monthTotal: (minutes: number, low: string, high: string) =>
+      `Family key this month: ${minutes} min ≈ ${low}–${high} (depends on voice quality)`,
     usageNote:
       "Only minutes on the family key count. Whoever has their own key in Settings pays for their lessons and has no limit.",
     inviteTitle: "Invite a member",

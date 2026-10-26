@@ -35,7 +35,7 @@ export function isNativeLanguage(value: unknown): value is NativeLanguage {
   return typeof value === "string" && value in NATIVE_LANGUAGES;
 }
 
-export const CEFR_CODES = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
+export const CEFR_CODES = ["A0", "A1", "A2", "B1", "B2", "C1", "C2"] as const;
 export type CefrLevel = (typeof CEFR_CODES)[number];
 
 /** Interest keys; they double as topic tags so the planner can match them. */

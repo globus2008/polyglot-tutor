@@ -5,7 +5,7 @@ import { CEFR_CODES, LANGUAGES, NATIVE_LANGUAGES, type Language, type NativeLang
 import type { LessonPlan } from "./planner";
 import { newCard, Rating, review } from "./srs";
 import { createAdminClient } from "./supabase/server";
-import type { Correction } from "./tutor-prompt";
+import { CORRECTION_CATEGORIES, type Correction } from "./tutor-prompt";
 import { getNativeLanguage } from "./user-settings";
 
 // Post-lesson analysis: a text model turns the transcript into structured memory
@@ -15,8 +15,6 @@ export const ANALYSIS_MODEL = process.env.OPENAI_ANALYSIS_MODEL ?? "gpt-5.4-mini
 
 /** Lessons in a row where a targeted mistake did not recur before it counts as mastered. */
 const MASTERY_CLEAN_LESSONS = 2;
-
-const CATEGORIES = ["grammar", "vocabulary", "word_order", "verb_tense", "agreement", "preposition", "phrasing", "other"];
 
 export type LessonAnalysis = {
   summary: string;
@@ -75,7 +73,7 @@ const schema = {
           },
           original: { type: "string" },
           corrected: { type: "string" },
-          category: { type: "string", enum: CATEGORIES },
+          category: { type: "string", enum: CORRECTION_CATEGORIES },
           explanation: {
             type: "string",
             description: "One short sentence in the learner's native language explaining the rule.",
@@ -138,7 +136,7 @@ Corrections the tutor flagged during the lesson (hints, may contain duplicates):
     input.corrections.map((c) => `"${c.original}" → "${c.corrected}"`).join("; ") || "none"
   }
 
-Only judge what the learner said; speech-to-text may contain small transcription errors – ignore those and anything that is only pronunciation. ${native} words used by the learner are not mistakes but may indicate vocabulary to learn.
+Only judge what the learner said; speech-to-text may contain small transcription errors – ignore those. You cannot hear pronunciation: include a pronunciation mistake (category pronunciation) only when the tutor flagged it above. ${native} words used by the learner are not mistakes but may indicate vocabulary to learn. A cefr_estimate of A0 means a complete beginner below A1.
 
 Transcript:
 ${lines}`;

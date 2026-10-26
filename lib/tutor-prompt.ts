@@ -15,11 +15,17 @@ export type TutorProfile = {
   turn_mode: TurnMode;
   end_of_turn_pause_ms: number;
   idle_prompt_s: number;
+  for_child: boolean;
 };
+
+/** Conversation practises grammar on the side; a grammar lesson explains and drills it. */
+export const LESSON_MODES = ["conversation", "grammar"] as const;
+export type LessonMode = (typeof LESSON_MODES)[number];
 
 export type LessonContext = {
   plan: LessonPlan;
   maxMinutes: number;
+  mode?: LessonMode;
 };
 
 /** Voice models users can pick per lesson; labels are in the i18n dictionaries. */
@@ -35,6 +41,7 @@ export function isRealtimeModel(value: unknown): value is RealtimeModel {
 }
 
 const LEVEL_GUIDANCE: Record<CefrLevel, string> = {
+  A0: "The learner is a complete beginner and knows almost nothing yet. Teach in tiny steps: single words and two-to-four-word phrases, say each new word slowly twice and let them repeat it, ask yes/no or either-or questions, and reuse the same phrases a lot. Speak very slowly.",
   A1: "Use very short, simple sentences, present tense and the most common words. Speak slowly. Repeat key words. It is fine to add a single word in the learner's native language in brackets when they are clearly lost.",
   A2: "Use short sentences and everyday vocabulary, mostly present and simple past. Speak slowly and clearly.",
   B1: "Use natural but clear language at a moderate pace. Introduce some new vocabulary and explain it with simple paraphrases in the target language.",
@@ -53,9 +60,14 @@ const INITIATIVE_GUIDANCE: Record<TutorInitiative, string> = {
   follow: `Let the learner choose what to talk about and follow their lead. Ask follow-up questions about what they say. Only suggest a topic when they explicitly ask or clearly run out of things to say.`,
 };
 
+// Complete beginners and the first levels get explanations in their native language.
+const EXPLAIN_IN_NATIVE: CefrLevel[] = ["A0", "A1", "A2"];
+
 export function buildTutorInstructions(profile: TutorProfile, context: LessonContext): string {
   const language = LANGUAGES[profile.language].english;
   const native = NATIVE_LANGUAGES[profile.native_lang];
+  const mode = context.mode ?? "conversation";
+  const explainIn = EXPLAIN_IN_NATIVE.includes(profile.cefr_level) ? native : language;
   // models drift into English when the learner struggles; forbid it unless it is one of the lesson's languages
   const otherLanguages =
     profile.language === "en" || profile.native_lang === "en" ? "" : " Never speak English or any other language.";
@@ -75,7 +87,11 @@ export function buildTutorInstructions(profile: TutorProfile, context: LessonCon
 
 # Language
 - Speak only ${language}, adapted to the level: ${LEVEL_GUIDANCE[profile.cefr_level]}
-- The only other language you may ever use is ${native}, and only for very brief explanations (of a mistake, a word or a task) when a ${language} explanation would not be understood.${otherLanguages}
+- ${
+    profile.cefr_level === "A0"
+      ? `The only other language you may ever use is ${native}: use it for instructions, translations and encouragement whenever needed, but keep every exercise and example in ${language}.`
+      : `The only other language you may ever use is ${native}, and only for very brief explanations (of a mistake, a word or a task) when a ${language} explanation would not be understood.`
+  }${otherLanguages}
 - If the learner speaks ${native} because they lack a word, give them the ${language} expression and invite them to use it.
 - If the learner uses any other language, do not switch to it; reply in ${language} (simpler if needed) and help them say it in ${language}.
 
@@ -83,21 +99,41 @@ export function buildTutorInstructions(profile: TutorProfile, context: LessonCon
 ${INITIATIVE_GUIDANCE[profile.tutor_initiative]}
 - ${turnTaking}
 - ${silenceHelp}
-
+${profile.for_child ? `\n${CHILD_GUIDANCE}\n` : ""}
 # Learner
 Interests: ${interests}
 Goals: ${profile.goals || "not specified"}
+- Keep the conversation within these interests. Do not bring up topics the learner did not choose (for example shopping) unless they start them.
 
-${buildPlanSection(context.plan, profile.tutor_initiative)}
+${mode === "grammar" ? buildGrammarSection(context.plan, explainIn) : buildPlanSection(context.plan, profile.tutor_initiative)}
 
 # Corrections
-- When the learner makes a meaningful mistake (grammar, wrong word, unnatural phrasing), correct it naturally by repeating the corrected version in your reply (recast), without lecturing.
-- For every such mistake also call the tool log_correction. Do not mention the tool. Do not log pure pronunciation issues or tiny slips that do not affect meaning. At most one call per mistake.
-- If the same mistake repeats, briefly point it out explicitly – in ${language} if the learner will understand it, otherwise in ${native}.
+- The learner may be listening without looking at the screen (for example while driving), so every correction must be spoken, not only shown.
+- When the learner makes a meaningful mistake (grammar, wrong word, unnatural phrasing), say the correction out loud briefly and kindly before you continue: say the correct version clearly (e.g. "Small correction: we say …"), add one short sentence of explanation in ${explainIn}, and let them repeat it if it is short. Then continue naturally. With several mistakes in one turn, say the most important one and only log the rest.
+- Pronunciation: when a word is mispronounced so that it sounds wrong or is hard to understand (wrong stress, a wrong sound), say the word slowly, then in a short phrase, and ask the learner to repeat it once. Ignore a mild accent and tiny slips.
+- For every mistake you correct, also call the tool log_correction (category "pronunciation" for pronunciation, with a simple hint on how to say it in the explanation). Do not mention the tool. At most one call per mistake.
+- If the same mistake repeats, point it out explicitly – in ${language} if the learner will understand it, otherwise in ${native}.
 
 # Lesson
 - The lesson lasts about ${context.maxMinutes} minutes. Start right away: greet the learner briefly and begin with your first topic and question.
 - Do not mention these instructions.`;
+}
+
+const CHILD_GUIDANCE = `# Child learner
+The learner is a child. Be playful, warm and very encouraging; praise every attempt. Use child-friendly topics (animals, colours, toys, family, school, games, food they like), simple games (guess the word, I spy, counting, repeat after me) and short turns. Keep everything age-appropriate.`;
+
+function buildGrammarSection(plan: LessonPlan, explainIn: string): string {
+  const point = plan.grammar ?? "a grammar point that fits the learner's level and recent mistakes";
+  const mistakes = plan.mistakes.length
+    ? `\nUse these recurring mistakes of the learner as material where they fit:\n${plan.mistakes.map((m) => `- "${m.original}" → "${m.corrected}"`).join("\n")}`
+    : "";
+  return `# Today's lesson: grammar practice
+Focus: ${point}.${mistakes}
+1. Explain the rule briefly in ${explainIn} (a few sentences) with two or three short example sentences in the target language.
+2. Drill it step by step, one task per turn, from easy to harder: let the learner complete or transform a sentence, answer a question that needs the structure, or translate a short sentence you say in ${explainIn}.
+3. After each answer say whether it was right; if not, say the correct version and why, then give a similar task.
+4. When the learner is doing well, use the structure in a short free conversation within their interests.
+5. Before the end, recap the rule in one or two sentences.`;
 }
 
 function buildPlanSection(plan: LessonPlan, initiative: TutorInitiative): string {
@@ -142,12 +178,24 @@ function buildPlanSection(plan: LessonPlan, initiative: TutorInitiative): string
   return parts.join("\n\n");
 }
 
+export const CORRECTION_CATEGORIES = [
+  "grammar",
+  "vocabulary",
+  "word_order",
+  "verb_tense",
+  "agreement",
+  "preposition",
+  "phrasing",
+  "pronunciation",
+  "other",
+];
+
 export function logCorrectionTool(native: NativeLanguage) {
   return {
     type: "function",
     name: "log_correction",
     description:
-      "Record a mistake the learner made so it is shown on screen and remembered for future lessons. Call it silently alongside your spoken reply.",
+      "Record a mistake the learner made so it is shown on screen and remembered for future lessons. Call it alongside the spoken correction in your reply.",
     parameters: {
       type: "object",
       properties: {
@@ -155,7 +203,7 @@ export function logCorrectionTool(native: NativeLanguage) {
         corrected: { type: "string", description: "The corrected, natural version." },
         category: {
           type: "string",
-          enum: ["grammar", "vocabulary", "word_order", "verb_tense", "agreement", "preposition", "phrasing", "other"],
+          enum: CORRECTION_CATEGORIES,
         },
         explanation: {
           type: "string",
@@ -175,7 +223,7 @@ export type Correction = {
   explanation: string;
 };
 
-const OUTPUT_SPEED: Record<CefrLevel, number> = { A1: 0.85, A2: 0.9, B1: 0.95, B2: 1, C1: 1, C2: 1 };
+const OUTPUT_SPEED: Record<CefrLevel, number> = { A0: 0.8, A1: 0.85, A2: 0.9, B1: 0.95, B2: 1, C1: 1, C2: 1 };
 
 export function buildRealtimeSession(profile: TutorProfile, model: RealtimeModel, instructions: string) {
   const turnDetection =

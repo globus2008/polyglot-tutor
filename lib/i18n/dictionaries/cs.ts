@@ -55,6 +55,7 @@ export const cs: Dictionary = {
     ru: "rusky",
   },
   cefr: {
+    A0: "Úplný začátečník – první slova a fráze s vysvětlením česky; vhodné i pro děti",
     A1: "Začátečník – pozdravím, představím se, objednám si",
     A2: "Mírně pokročilý – zvládnu běžné situace jednoduchými větami",
     B1: "Středně pokročilý – domluvím se na cestách, popíšu zážitky",
@@ -132,6 +133,8 @@ export const cs: Dictionary = {
     language: "Jazyk",
     profileExists: "profil existuje – upravíte ho",
     level: "Současná úroveň",
+    forChild: "Výuka pro dítě",
+    forChildHint: "Lektor je hravý, hodně chválí a volí témata a hry vhodné pro děti.",
     levelHint: "Nevíte přesně? Zvolte nižší – lektor úroveň po lekcích upřesní.",
     interests: "Zájmy",
     customInterests: "Další zájmy (oddělené čárkou)",
@@ -177,6 +180,10 @@ export const cs: Dictionary = {
     profiles: "Jazykové profily",
     edit: "Upravit",
     addLanguage: "Přidat jazyk",
+    spendTitle: "Útrata tento měsíc",
+    spend: (minutes, cost) => `Vaše lekce tento měsíc: ${minutes} min ≈ ${cost}`,
+    spendNoteBefore: "Hrubý odhad z délky lekcí a kvality hlasu. Přesnou částku, kterou OpenAI účtovalo, najdete na ",
+    spendNoteAfter: ".",
     signedInAs: (email) => `Přihlášen jako ${email}`,
   },
   dashboard: {
@@ -190,6 +197,8 @@ export const cs: Dictionary = {
     minutes: "minut",
     words: (n) => plural(n, "slovíčko", "slovíčka", "slovíček"),
     mastered: "zvládnuto",
+    estimates: (levels) => `Odhad úrovně z posledních lekcí: ${levels}.`,
+    estimatesHint: "Změnu úrovně lektor nabídne, když se shodnou tři vyhodnocené lekce po sobě.",
     suggestion: (level) => `Podle posledních lekcí odhaduje lektor vaši úroveň na ${level}.`,
     changeTo: (level) => `Změnit na ${level}`,
     changing: "Měním…",
@@ -208,6 +217,14 @@ export const cs: Dictionary = {
     testMic: "Vyzkoušet mikrofon",
     micDenied: "Bez přístupu k mikrofonu to nepůjde. Povolte ho v prohlížeči (ikona vedle adresy).",
     deviceFailed: "Toto zařízení nelze otevřít.",
+    modeLegend: "Typ lekce",
+    modes: {
+      conversation: { label: "Konverzace", description: "Povídání o vašich tématech, gramatika se procvičuje mimochodem." },
+      grammar: { label: "Gramatika", description: "Lektor vysvětlí jedno pravidlo a krok za krokem ho s vámi procvičí." },
+    },
+    carTitle: "V autě a handsfree",
+    carHint:
+      "Před spuštěním připojte telefon k autu (Bluetooth) a jako mikrofon zvolte handsfree auta, pokud je v seznamu. Obrazovka během lekce nezhasne a lektor každou opravu řekne nahlas.",
     quality: "Kvalita hlasu",
     models: {
       "gpt-realtime-2.1-mini": { label: "Úsporný", description: "Levnější, pro běžné procvičování stačí." },
@@ -229,6 +246,7 @@ export const cs: Dictionary = {
       agreement: "shoda",
       preposition: "předložky",
       phrasing: "formulace",
+      pronunciation: "výslovnost",
       other: "jiné",
     },
     status: {
@@ -333,6 +351,9 @@ export const cs: Dictionary = {
     remove: "Odebrat",
     removeConfirm: "Odebrat člena z rodiny?",
     defaultLimit: "Výchozí denní limit na člena:",
+    ownKey: "používá vlastní klíč – jeho minuty se sem nepočítají",
+    monthTotal: (minutes, low, high) =>
+      `Rodinný klíč tento měsíc: ${minutes} min ≈ ${low}–${high} (podle kvality hlasu)`,
     usageNote:
       "Počítají se jen minuty na rodinném klíči. Kdo má v Nastavení vlastní klíč, platí si lekce sám a limit se na něj nevztahuje.",
     inviteTitle: "Pozvat člena",

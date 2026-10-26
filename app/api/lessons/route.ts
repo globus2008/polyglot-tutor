@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { resolveOpenAIKey } from "@/lib/api-keys";
 import { getHouseholdAllowance } from "@/lib/households";
+import { closeAbandonedLessons } from "@/lib/lessons";
 import { getRequestDictionary, getRequestLocale } from "@/lib/i18n/server";
 import type { TurnMode, TutorInitiative } from "@/lib/conversation-style";
 import { LANGUAGE_CODES, type CefrLevel } from "@/lib/languages";
@@ -13,14 +14,19 @@ import {
   buildRealtimeSession,
   buildTutorInstructions,
   isRealtimeModel,
+  LESSON_MODES,
   MAX_LESSON_MINUTES,
   type TutorProfile,
 } from "@/lib/tutor-prompt";
 import { allowedLessonMinutes } from "@/lib/usage";
 
+// leaves room for analysing abandoned lessons after the response
+export const maxDuration = 120;
+
 const bodySchema = z.object({
   language: z.enum(LANGUAGE_CODES),
   model: z.string().refine(isRealtimeModel),
+  mode: z.enum(LESSON_MODES).default("conversation"),
 });
 
 const fail = (status: number, message: string) => NextResponse.json({ error: message }, { status });
@@ -34,7 +40,7 @@ export async function POST(request: NextRequest) {
 
   const body = bodySchema.safeParse(await request.json().catch(() => null));
   if (!body.success) return fail(400, t.errors.badRequest);
-  const { language, model } = body.data;
+  const { language, model, mode } = body.data;
   if (!isRealtimeModel(model)) return fail(400, t.errors.badRequest);
 
   const [{ data: profile }, { data: recent }, { data: topics }, { data: mistakes }, { data: vocab }, key, nativeLang] =
@@ -72,12 +78,7 @@ export async function POST(request: NextRequest) {
   if (!profile) return fail(404, t.errors.profileFirst);
 
   // lessons whose finish never arrived (crash, lost connection) must not block or skew history
-  await supabase
-    .from("lessons")
-    .update({ status: "failed", ended_at: new Date().toISOString() })
-    .eq("user_id", userId)
-    .eq("status", "active")
-    .lt("started_at", new Date(Date.now() - (MAX_LESSON_MINUTES + 5) * 60_000).toISOString());
+  await closeAbandonedLessons(supabase, userId);
   if (!key) return fail(402, t.errors.missingKey);
 
   // the household key is shared money: each member has a daily allowance
@@ -111,7 +112,7 @@ export async function POST(request: NextRequest) {
     openMistakes: mistakes ?? [],
     dueVocab: vocab ?? [],
   });
-  const instructions = buildTutorInstructions(tutorProfile, { plan, maxMinutes });
+  const instructions = buildTutorInstructions(tutorProfile, { plan, maxMinutes, mode });
   const session = buildRealtimeSession(tutorProfile, model, instructions);
 
   let secret;
@@ -131,6 +132,7 @@ export async function POST(request: NextRequest) {
       topic_id: plan.topic?.id ?? null,
       plan: {
         lesson: plan,
+        mode,
         maxMinutes,
         instructions,
         keySource: key.source,
@@ -148,6 +150,13 @@ export async function POST(request: NextRequest) {
     turnMode: tutorProfile.turn_mode,
     idlePromptS: tutorProfile.idle_prompt_s,
     maxMinutes,
-    topic: plan.topic ? (locale === "cs" ? plan.topic.title_cs : plan.topic.title) : null,
+    topic:
+      mode === "grammar"
+        ? plan.grammar
+        : plan.topic
+          ? locale === "cs"
+            ? plan.topic.title_cs
+            : plan.topic.title
+          : null,
   });
 }

@@ -19,6 +19,7 @@ type Initial = {
   cefr_level?: string;
   interests?: string[];
   goals?: string;
+  for_child?: boolean;
   tutor_initiative?: string;
   turn_mode?: string;
   end_of_turn_pause_ms?: number;
@@ -101,6 +102,18 @@ export function ProfileForm({
           ))}
         </div>
         <p className="mt-2 text-sm text-muted-foreground">{t.onboarding.levelHint}</p>
+        <label className={`${optionCard} mt-4`}>
+          <input
+            type="checkbox"
+            name="for_child"
+            defaultChecked={initial?.for_child}
+            className="mt-1 accent-[var(--accent)]"
+          />
+          <span>
+            <span className="block font-medium">{t.onboarding.forChild}</span>
+            <span className="text-sm text-muted-foreground">{t.onboarding.forChildHint}</span>
+          </span>
+        </label>
       </fieldset>
 
       <fieldset>

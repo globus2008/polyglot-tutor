@@ -40,3 +40,9 @@ export async function getEmails(userIds: string[]): Promise<Map<string, string>>
   );
   return new Map(entries);
 }
+
+/** Which of the given users have their own key – their lessons don't run on the household key. */
+export async function getUsersWithOwnKey(userIds: string[]): Promise<Set<string>> {
+  const { data } = await createAdminClient().from("api_keys").select("user_id").in("user_id", userIds);
+  return new Set((data ?? []).map((k) => k.user_id).filter((id): id is string => Boolean(id)));
+}

@@ -32,7 +32,7 @@ async function ProfileLoader({ searchParams }: Pick<PageProps<"/[lang]/onboardin
   const { data: profiles } = await supabase
     .from("learner_profiles")
     .select(
-      "language, cefr_level, interests, goals, tutor_initiative, turn_mode, end_of_turn_pause_ms, idle_prompt_s",
+      "language, cefr_level, interests, goals, for_child, tutor_initiative, turn_mode, end_of_turn_pause_ms, idle_prompt_s",
     )
     .eq("user_id", user.id);
 

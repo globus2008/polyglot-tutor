@@ -3,7 +3,8 @@ import type { CefrLevel, Language } from "./languages";
 // Grammar points per language and level. The planner rotates through them so every
 // lesson quietly practises one structure; the tutor weaves it into the conversation.
 
-export const GRAMMAR: Record<Language, Record<CefrLevel, string[]>> = {
+// A0 has no list of its own: grammarPoints() uses the start of A1.
+export const GRAMMAR: Record<Language, Record<Exclude<CefrLevel, "A0">, string[]>> = {
   es: {
     A1: [
       "ser vs estar (basic uses)",
@@ -329,3 +330,8 @@ export const GRAMMAR: Record<Language, Record<CefrLevel, string[]>> = {
     ],
   },
 };
+
+/** Grammar points of a level; complete beginners (A0) get the very first A1 ones. */
+export function grammarPoints(language: Language, level: CefrLevel): string[] {
+  return level === "A0" ? GRAMMAR[language].A1.slice(0, 3) : GRAMMAR[language][level];
+}

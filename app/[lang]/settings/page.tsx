@@ -9,8 +9,10 @@ import { getKeyInfo, resolveOpenAIKey } from "@/lib/api-keys";
 import { getCurrentUser } from "@/lib/auth";
 import { INTL_LOCALE, localePath } from "@/lib/i18n";
 import { getDictionary, getLocale } from "@/lib/i18n/server";
+import { localDay } from "@/lib/progress";
 import { isLanguage, LANGUAGE_CODES, LANGUAGES } from "@/lib/languages";
 import { createClient } from "@/lib/supabase/server";
+import { estimateCost, formatUsd } from "@/lib/usage";
 import { getNativeLanguage } from "@/lib/user-settings";
 import { deleteAccount, removeApiKey, saveApiKey } from "./actions";
 import { NativeLanguageForm } from "./native-language-form";
@@ -34,12 +36,15 @@ export default async function SettingsPage() {
 async function SettingsContent() {
   const [t, locale, user] = await Promise.all([getDictionary(), getLocale(), getCurrentUser()]);
   const supabase = await createClient();
-  const [keyInfo, resolved, { data: profiles }, nativeLang] = await Promise.all([
+  const monthStart = `${localDay(new Date()).slice(0, 7)}-01`;
+  const [keyInfo, resolved, { data: profiles }, nativeLang, { data: monthLessons }] = await Promise.all([
     getKeyInfo({ kind: "user", id: user.id }),
     resolveOpenAIKey(user.id),
     supabase.from("learner_profiles").select("language, cefr_level, interests").eq("user_id", user.id).order("language"),
     getNativeLanguage(supabase, user.id, locale),
+    supabase.from("lessons").select("duration_s, model").eq("user_id", user.id).gte("started_at", monthStart),
   ]);
+  const monthMinutes = Math.round((monthLessons ?? []).reduce((sum, l) => sum + (l.duration_s ?? 0), 0) / 60);
   const missingLanguages = LANGUAGE_CODES.filter((l) => !profiles?.some((p) => p.language === l));
   const dateFormat = new Intl.DateTimeFormat(INTL_LOCALE[locale], { dateStyle: "medium" });
   const interestLabel = (i: string) => (t.interests as Record<string, string>)[i] ?? i;
@@ -74,6 +79,19 @@ async function SettingsContent() {
           </p>
         )}
         <ApiKeyForm hasKey={Boolean(keyInfo)} saveAction={saveApiKey} />
+      </Card>
+
+      <Card title={t.settings.spendTitle}>
+        <p className="font-medium">
+          {t.settings.spend(monthMinutes, formatUsd(estimateCost(monthLessons ?? []), INTL_LOCALE[locale]))}
+        </p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {t.settings.spendNoteBefore}
+          <a href="https://platform.openai.com/usage" target="_blank" rel="noreferrer" className="text-accent underline">
+            platform.openai.com/usage
+          </a>
+          {t.settings.spendNoteAfter}
+        </p>
       </Card>
 
       <Card title={t.settings.nativeTitle}>

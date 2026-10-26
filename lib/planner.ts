@@ -1,4 +1,4 @@
-import { GRAMMAR } from "./curriculum";
+import { grammarPoints } from "./curriculum";
 import { CEFR_CODES, type CefrLevel, type Language } from "./languages";
 
 // Decides what the next lesson covers, from the learner's history. Pure: the lesson
@@ -43,10 +43,10 @@ const MAX_MISTAKES = 3;
 const MAX_VOCAB = 8;
 const SUMMARIES = 3;
 
-/** The learner's level and the one below; at A1 just A1. */
+/** The learner's level and the one below; complete beginners (A0) use A1 topics too. */
 function allowedLevels(level: CefrLevel): CefrLevel[] {
   const index = CEFR_CODES.indexOf(level);
-  return index === 0 ? [level] : [CEFR_CODES[index - 1], level];
+  return index === 0 ? [level, CEFR_CODES[1]] : [CEFR_CODES[index - 1], level];
 }
 
 function weightedPick<T>(items: { item: T; weight: number }[], random: () => number): T | null {
@@ -70,14 +70,18 @@ export function pickTopic(input: PlannerInput): PlannerTopic | null {
     const recent = new Set(input.recentLessons.slice(0, avoid).map((l) => l.topic_id));
     return candidates.filter((t) => !recent.has(t.id));
   };
-  let available = pool(AVOID_RECENT_TOPICS);
-  if (available.length === 0) available = pool(3);
-  if (available.length === 0) available = candidates;
+  const pools = [pool(AVOID_RECENT_TOPICS), pool(3), candidates];
 
+  // never a topic outside the chosen interests: without a match the tutor improvises one from them
   const interests = new Set(input.interests.map((i) => i.toLowerCase()));
+  const matchCount = (t: PlannerTopic) => t.tags.filter((tag) => interests.has(tag.toLowerCase())).length;
+  const available = interests.size
+    ? (pools.map((p) => p.filter((t) => matchCount(t) > 0)).find((p) => p.length) ?? [])
+    : (pools.find((p) => p.length) ?? []);
+
   return weightedPick(
     available.map((t) => {
-      const matches = t.tags.filter((tag) => interests.has(tag.toLowerCase())).length;
+      const matches = matchCount(t);
       const fresh = usedEver.has(t.id) ? 0.4 : 1;
       const atLevel = t.cefr_level === input.level ? 1.5 : 1;
       return { item: t, weight: fresh * atLevel * (1 + 2 * matches) };
@@ -88,7 +92,7 @@ export function pickTopic(input: PlannerInput): PlannerTopic | null {
 
 /** Least recently practised grammar point of the level. */
 export function pickGrammar(input: PlannerInput): string | null {
-  const points = GRAMMAR[input.language][input.level];
+  const points = grammarPoints(input.language, input.level);
   if (!points.length) return null;
   const lastUsed = new Map<string, number>();
   input.recentLessons.forEach((l, index) => {

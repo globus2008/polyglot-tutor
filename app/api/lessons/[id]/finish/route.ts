@@ -2,9 +2,8 @@ import { after, NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { analyzeLesson } from "@/lib/analysis";
 import { getRequestDictionary } from "@/lib/i18n/server";
-import { localDay } from "@/lib/progress";
-import { createAdminClient, createClient } from "@/lib/supabase/server";
-import { MAX_LESSON_MINUTES } from "@/lib/tutor-prompt";
+import { bookUsage, lessonDuration, type StoredLessonPlan } from "@/lib/lessons";
+import { createClient } from "@/lib/supabase/server";
 
 // leaves room for the post-lesson analysis that runs after the response
 export const maxDuration = 120;
@@ -23,7 +22,8 @@ const bodySchema = z.object({
       }),
     )
     .max(100),
-  status: z.enum(["finished", "failed"]),
+  // "active": a progress save during the lesson
+  status: z.enum(["finished", "failed", "active"]),
 });
 
 // Saves the transcript and corrections of a lesson and books the audio time.
@@ -46,35 +46,35 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
   if (!lesson) return NextResponse.json({ error: t.errors.lessonNotFound }, { status: 404 });
   if (lesson.status !== "active") return NextResponse.json({ ok: true });
 
-  // duration comes from the server clock, not the client, capped at the lesson's allowance
-  const plan = lesson.plan as { keySource?: string; householdId?: string; maxMinutes?: number };
   const endedAt = new Date();
-  const durationS = Math.min(
-    Math.round((endedAt.getTime() - new Date(lesson.started_at).getTime()) / 1000),
-    ((plan.maxMinutes ?? MAX_LESSON_MINUTES) + 1) * 60,
-  );
+  const { transcript, corrections, status } = body.data;
 
-  const { error } = await supabase
+  // ended_at of an active lesson is the last progress save, used if the finish never arrives
+  if (status === "active") {
+    await supabase
+      .from("lessons")
+      .update({ transcript, corrections, ended_at: endedAt.toISOString() })
+      .eq("id", id)
+      .eq("status", "active");
+    return NextResponse.json({ ok: true });
+  }
+
+  const plan = lesson.plan as StoredLessonPlan;
+  const durationS = lessonDuration(lesson.started_at, endedAt, plan);
+
+  const { data: closed, error } = await supabase
     .from("lessons")
-    .update({
-      status: body.data.status,
-      transcript: body.data.transcript,
-      corrections: body.data.corrections,
-      ended_at: endedAt.toISOString(),
-      duration_s: durationS,
-    })
+    .update({ status, transcript, corrections, ended_at: endedAt.toISOString(), duration_s: durationS })
     .eq("id", id)
-    .eq("status", "active");
+    .eq("status", "active")
+    .select("id");
   if (error) return NextResponse.json({ error: t.errors.lessonSaveFailed }, { status: 500 });
+  // a parallel request (beacon and button at once) already closed it – book the time only once
+  if (!closed?.length) return NextResponse.json({ ok: true, durationS });
 
-  await createAdminClient().rpc("add_usage", {
-    p_user_id: userId,
-    p_day: localDay(endedAt),
-    p_seconds: durationS,
-    ...(plan.keySource === "household" && plan.householdId ? { p_household_id: plan.householdId } : {}),
-  });
+  await bookUsage(userId, endedAt, durationS, plan);
 
-  if (body.data.status === "finished") after(() => analyzeLesson(id));
+  if (status === "finished") after(() => analyzeLesson(id));
 
   return NextResponse.json({ ok: true, durationS });
 }

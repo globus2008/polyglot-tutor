@@ -42,13 +42,23 @@ describe("pickTopic", () => {
     expect(pickTopic({ ...base, recentLessons })).not.toBeNull();
   });
 
-  it("prefers topics matching interests", () => {
-    let music = 0;
-    for (let i = 0; i < 100; i++) {
-      if (pickTopic({ ...base, interests: ["hudba"], random: () => i / 100 })?.id === "a2-music") music++;
+  it("picks only topics matching interests when there are any", () => {
+    for (let i = 0; i < 20; i++) {
+      expect(pickTopic({ ...base, interests: ["hudba"], random: () => i / 20 })?.id).toBe("a2-music");
     }
-    // weights: a1-x 1, a2-x 1.5, a2-music 4.5 → 64 %
-    expect(music).toBeGreaterThan(55);
+  });
+
+  it("repeats an interest topic rather than picking an unrelated one", () => {
+    const recentLessons = [{ topic_id: "a2-music", summary: null, grammar: null }];
+    expect(pickTopic({ ...base, interests: ["hudba"], recentLessons })?.id).toBe("a2-music");
+  });
+
+  it("leaves the topic to the tutor when none matches the interests", () => {
+    expect(pickTopic({ ...base, interests: ["sport"] })).toBeNull();
+  });
+
+  it("gives complete beginners A1 topics", () => {
+    expect(pickTopic({ ...base, level: "A0" })?.id).toBe("a1-x");
   });
 });
 
@@ -59,6 +69,10 @@ describe("pickGrammar", () => {
     expect(pickGrammar(base)).toBe(points[0]);
     const recentLessons = [{ topic_id: null, summary: null, grammar: points[0] }];
     expect(pickGrammar({ ...base, recentLessons })).toBe(points[1]);
+  });
+
+  it("gives complete beginners the first A1 points", () => {
+    expect(pickGrammar({ ...base, level: "A0" })).toBe(GRAMMAR.es.A1[0]);
   });
 
   it("then repeats the one practised longest ago", () => {

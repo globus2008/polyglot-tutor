@@ -13,7 +13,15 @@ import {
   type RealtimeConnection,
   type ServerEvent,
 } from "@/lib/realtime-client";
-import { DEFAULT_REALTIME_MODEL, isRealtimeModel, REALTIME_MODELS, type Correction, type RealtimeModel } from "@/lib/tutor-prompt";
+import {
+  DEFAULT_REALTIME_MODEL,
+  isRealtimeModel,
+  LESSON_MODES,
+  REALTIME_MODELS,
+  type Correction,
+  type LessonMode,
+  type RealtimeModel,
+} from "@/lib/tutor-prompt";
 import { LessonResult } from "./lesson-result";
 
 type Phase = "ready" | "connecting" | "live" | "saving" | "done" | "error";
@@ -30,6 +38,10 @@ type LoggedCorrection = Correction & { afterId: string | null };
 
 const MODEL_STORAGE_KEY = "polyglot.realtimeModel";
 const MIC_STORAGE_KEY = "polyglot.micDeviceId";
+/** The transcript is saved this often, so a lesson killed by the phone still counts. */
+const PROGRESS_SAVE_MS = 60_000;
+/** Within this distance from the bottom, new messages keep the page scrolled down. */
+const STICK_TO_BOTTOM_PX = 150;
 
 function readStored(key: string): string | null {
   try {
@@ -57,6 +69,14 @@ function toSaved({ original, corrected, explanation, category }: LoggedCorrectio
   return { original, corrected, explanation, category };
 }
 
+function lessonBody(status: "finished" | "failed" | "active", messages: Message[], corrections: LoggedCorrection[]) {
+  return JSON.stringify({
+    status,
+    transcript: messages.filter((m) => m.text.trim()).map(({ role, text }) => ({ role, text })),
+    corrections: corrections.map(toSaved),
+  });
+}
+
 function formatTime(seconds: number) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
@@ -67,6 +87,7 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
   const [error, setError] = useState<string | null>(null);
   const storedModel = useSyncExternalStore(noSubscription, readStoredModel, () => DEFAULT_REALTIME_MODEL);
   const [chosenModel, setModel] = useState<RealtimeModel | null>(null);
+  const [mode, setMode] = useState<LessonMode>("conversation");
   const model = chosenModel ?? storedModel;
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -90,8 +111,8 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapUpSentRef = useRef(false);
   const finishingRef = useRef(false);
-  const transcriptEndRef = useRef<HTMLDivElement>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
+  const stickToBottomRef = useRef(true);
 
   // Opens (or switches) the microphone before the lesson so the level meter can show it works.
   const openMic = useCallback(async (deviceId?: string) => {
@@ -118,9 +139,43 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
     correctionsRef.current = corrections;
   }, [messages, corrections]);
 
+  // Follow the conversation only while the learner is at the bottom, so scrolling up to reread isn't undone.
   useEffect(() => {
-    transcriptEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, corrections]);
+    const onScroll = () => {
+      const { scrollHeight } = document.documentElement;
+      stickToBottomRef.current = window.innerHeight + window.scrollY >= scrollHeight - STICK_TO_BOTTOM_PX;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (phase === "live" && stickToBottomRef.current) window.scrollTo({ top: document.documentElement.scrollHeight });
+  }, [phase, messages, corrections, showTextInput]);
+
+  // Keep the screen on during the lesson (phone in a car holder); the lock is lost whenever the page is hidden.
+  useEffect(() => {
+    if (phase !== "live" || !("wakeLock" in navigator)) return;
+    let lock: WakeLockSentinel | null = null;
+    let released = false;
+    const acquire = async () => {
+      if (document.visibilityState !== "visible") return;
+      try {
+        const next = await navigator.wakeLock.request("screen");
+        if (released) void next.release();
+        else lock = next;
+      } catch {
+        // denied (battery saver) – the lesson works without it
+      }
+    };
+    void acquire();
+    document.addEventListener("visibilitychange", acquire);
+    return () => {
+      released = true;
+      document.removeEventListener("visibilitychange", acquire);
+      void lock?.release();
+    };
+  }, [phase]);
 
   const upsertMessage = useCallback((id: string, role: Message["role"], update: (text: string) => string) => {
     setMessages((prev) => {
@@ -242,11 +297,7 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
       const res = await fetch(`/api/lessons/${current.lessonId}/finish`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status,
-          transcript: messagesRef.current.filter((m) => m.text.trim()).map(({ role, text }) => ({ role, text })),
-          corrections: correctionsRef.current.map(toSaved),
-        }),
+        body: lessonBody(status, messagesRef.current, correctionsRef.current),
       });
       const data = await res.json().catch(() => ({}));
       setSavedDuration(typeof data.durationS === "number" ? data.durationS : null);
@@ -274,7 +325,7 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
     return () => clearInterval(timer);
   }, [phase, lesson, finish, sendSystemNudge]);
 
-  // Save what we have if the tab is closed mid-lesson.
+  // Save what we have if the tab is closed mid-lesson, and regularly in case the phone kills the page silently.
   useEffect(() => {
     if (phase !== "live") return;
     const onUnload = () => {
@@ -282,21 +333,24 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
       if (!current || finishingRef.current) return;
       navigator.sendBeacon(
         `/api/lessons/${current.lessonId}/finish`,
-        new Blob(
-          [
-            JSON.stringify({
-              status: "finished",
-              transcript: messagesRef.current.filter((m) => m.text.trim()).map(({ role, text }) => ({ role, text })),
-              corrections: correctionsRef.current.map(toSaved),
-            }),
-          ],
-          // text/plain: sendBeacon refuses non-CORS-safelisted types; the route parses JSON anyway
-          { type: "text/plain" },
-        ),
+        // text/plain: sendBeacon refuses non-CORS-safelisted types; the route parses JSON anyway
+        new Blob([lessonBody("finished", messagesRef.current, correctionsRef.current)], { type: "text/plain" }),
       );
     };
+    const progress = setInterval(() => {
+      const current = lessonRef.current;
+      if (!current || finishingRef.current) return;
+      void fetch(`/api/lessons/${current.lessonId}/finish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: lessonBody("active", messagesRef.current, correctionsRef.current),
+      }).catch(() => {});
+    }, PROGRESS_SAVE_MS);
     window.addEventListener("pagehide", onUnload);
-    return () => window.removeEventListener("pagehide", onUnload);
+    return () => {
+      clearInterval(progress);
+      window.removeEventListener("pagehide", onUnload);
+    };
   }, [phase]);
 
   useEffect(() => () => connRef.current?.close(), []);
@@ -317,7 +371,7 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
       const res = await fetch("/api/lessons", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ language, model }),
+        body: JSON.stringify({ language, model, mode }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? t.lesson.startFailed);
@@ -444,7 +498,7 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
         : t.lesson.status.autoReady;
 
   return (
-    <div className="space-y-4 pb-36">
+    <div className={`space-y-4 ${showTextInput ? "pb-56" : "pb-36"}`}>
       <audio ref={audioRef} autoPlay playsInline className="hidden" />
 
       <div className="flex items-center justify-between gap-3">
@@ -456,8 +510,16 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
           {lesson?.topic && <span className="ml-2 font-normal text-muted-foreground">· {lesson.topic}</span>}
         </h1>
         {(phase === "live" || phase === "saving") && lesson && (
-          <span className="font-mono text-sm tabular-nums text-muted-foreground">
-            {formatTime(elapsed)} / {lesson.maxMinutes}:00
+          <span className="flex items-center gap-3">
+            <span className="font-mono text-sm tabular-nums text-muted-foreground">
+              {formatTime(elapsed)} / {lesson.maxMinutes}:00
+            </span>
+            {/* also up here: the bottom bar can end up off screen on some phones */}
+            {phase === "live" && (
+              <button type="button" onClick={() => void finish()} className={`${buttonClass("danger")} px-3 py-1.5`}>
+                {t.lesson.end}
+              </button>
+            )}
           </span>
         )}
       </div>
@@ -502,6 +564,29 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
             )}
           </div>
           <fieldset>
+            <legend className="mb-2 text-sm font-medium">{t.lesson.modeLegend}</legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {LESSON_MODES.map((m) => (
+                <label
+                  key={m}
+                  className="flex cursor-pointer items-start gap-3 rounded-xl border border-line px-4 py-3 has-[:checked]:border-accent"
+                >
+                  <input
+                    type="radio"
+                    name="mode"
+                    checked={mode === m}
+                    onChange={() => setMode(m)}
+                    className="mt-1 accent-[var(--accent)]"
+                  />
+                  <span>
+                    <span className="block font-medium">{t.lesson.modes[m].label}</span>
+                    <span className="text-sm text-muted-foreground">{t.lesson.modes[m].description}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <fieldset>
             <legend className="mb-2 text-sm font-medium">{t.lesson.quality}</legend>
             <div className="grid gap-2 sm:grid-cols-2">
               {REALTIME_MODELS.map((m) => (
@@ -532,6 +617,10 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
           <button type="button" onClick={start} disabled={phase === "connecting"} className={`${buttonClass()} w-full`}>
             {phase === "connecting" ? t.lesson.connecting : t.lesson.start}
           </button>
+          <details className="text-sm">
+            <summary className="cursor-pointer font-medium">{t.lesson.carTitle}</summary>
+            <p className="mt-1 text-muted-foreground">{t.lesson.carHint}</p>
+          </details>
           <p className="text-xs text-muted-foreground">
             {t.lesson.footnoteBefore}
             <Link href={path(`/onboarding?language=${language}`)} className="underline">
@@ -561,7 +650,6 @@ export function VoiceLesson({ language, languageName, flag }: { language: string
           ))}
           {/* corrections whose turn has no text yet (e.g. transcription still running) */}
           {corrections.filter((c) => !visibleIds.has(c.afterId ?? "")).map(renderCorrection)}
-          <div ref={transcriptEndRef} />
         </section>
       )}
 

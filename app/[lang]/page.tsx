@@ -81,10 +81,9 @@ async function Dashboard() {
             const due = langVocab.filter((v) => new Date(v.due) <= now).length;
             const minutes = Math.round(langLessons.reduce((sum, l) => sum + (l.duration_s ?? 0), 0) / 60);
             const last = langLessons.find((l) => l.feedback);
-            const suggested = suggestLevel(
-              langLessons.map((l) => l.cefr_estimate),
-              p.cefr_level as CefrLevel,
-            );
+            const estimates = langLessons.map((l) => l.cefr_estimate);
+            const suggested = suggestLevel(estimates, p.cefr_level as CefrLevel);
+            const recentEstimates = estimates.filter(Boolean).slice(0, 3);
             const stats: [number, string][] = [
               [langLessons.length, t.dashboard.lessons(langLessons.length)],
               [minutes, t.dashboard.minutes],
@@ -125,6 +124,12 @@ async function Dashboard() {
                       {t.dashboard.changeTo(suggested)}
                     </SubmitButton>
                   </form>
+                )}
+
+                {!suggested && recentEstimates.length > 0 && (
+                  <p className="mt-4 text-xs text-muted-foreground">
+                    {t.dashboard.estimates(recentEstimates.join(", "))} {t.dashboard.estimatesHint}
+                  </p>
                 )}
 
                 {last?.feedback && (

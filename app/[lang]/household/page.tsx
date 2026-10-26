@@ -5,11 +5,12 @@ import { SubmitButton } from "@/components/submit-button";
 import { Card, inputClass } from "@/components/ui";
 import { getKeyInfo } from "@/lib/api-keys";
 import { getCurrentUser } from "@/lib/auth";
-import { getEmails } from "@/lib/households";
+import { getEmails, getUsersWithOwnKey } from "@/lib/households";
 import { INTL_LOCALE } from "@/lib/i18n";
 import { getDictionary, getLocale } from "@/lib/i18n/server";
 import { localDay } from "@/lib/progress";
 import { createClient } from "@/lib/supabase/server";
+import { estimateCostRange, formatUsd } from "@/lib/usage";
 import {
   deleteHousehold,
   leaveHousehold,
@@ -84,12 +85,16 @@ async function HouseholdContent() {
       : Promise.resolve({ data: [] }),
     getKeyInfo({ kind: "household", id: householdId }),
   ]);
-  const emails = await getEmails((members ?? []).map((m) => m.user_id));
+  const memberIds = (members ?? []).map((m) => m.user_id);
+  const [emails, ownKey] = await Promise.all([getEmails(memberIds), getUsersWithOwnKey(memberIds)]);
 
   const minutes = (userId: string, fromDay: string) =>
     Math.round(
       (usage ?? []).filter((u) => u.user_id === userId && u.day >= fromDay).reduce((s, u) => s + u.audio_seconds, 0) / 60,
     );
+
+  const monthMinutes = Math.round((usage ?? []).reduce((s, u) => s + u.audio_seconds, 0) / 60);
+  const monthCost = estimateCostRange(monthMinutes).map((usd) => formatUsd(usd, INTL_LOCALE[locale])) as [string, string];
 
   return (
     <>
@@ -133,6 +138,7 @@ async function HouseholdContent() {
                       {t.household.usage(minutes(m.user_id, today), limit, minutes(m.user_id, monthStart))}
                     </span>
                   )}
+                  {ownKey.has(m.user_id) && <span className="block text-xs text-muted-foreground">{t.household.ownKey}</span>}
                 </span>
                 {owner && (
                   <span className="flex items-center gap-2">
@@ -189,6 +195,7 @@ async function HouseholdContent() {
             </SubmitButton>
           </form>
         )}
+        {owner && <p className="mt-4 text-sm font-medium">{t.household.monthTotal(monthMinutes, ...monthCost)}</p>}
         <p className="mt-3 text-xs text-muted-foreground">{t.household.usageNote}</p>
       </Card>
 

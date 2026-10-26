@@ -12,6 +12,7 @@ const profile: TutorProfile = {
   turn_mode: "auto",
   end_of_turn_pause_ms: 2000,
   idle_prompt_s: 15,
+  for_child: false,
 };
 
 const emptyPlan: LessonPlan = { topic: null, grammar: null, mistakes: [], vocab: [], recentSummaries: [] };
@@ -109,5 +110,32 @@ describe("buildRealtimeSession", () => {
   it("turns VAD off for push-to-talk", () => {
     const session = buildRealtimeSession({ ...profile, turn_mode: "push_to_talk" }, "gpt-realtime-2.1", "x");
     expect(session.audio.input.turn_detection).toBeNull();
+  });
+});
+
+describe("lesson variants", () => {
+  it("asks for spoken corrections and pronunciation help", () => {
+    const text = buildTutorInstructions(profile, { plan: emptyPlan, maxMinutes: 15 });
+    expect(text).toContain("every correction must be spoken");
+    expect(text).toContain('category "pronunciation"');
+    expect(text).toContain("explanation in Czech");
+  });
+
+  it("drills the planned grammar point in a grammar lesson", () => {
+    const plan = { ...emptyPlan, grammar: "ser vs estar" };
+    const text = buildTutorInstructions(profile, { plan, maxMinutes: 15, mode: "grammar" });
+    expect(text).toContain("grammar practice");
+    expect(text).toContain("Focus: ser vs estar.");
+    expect(text).not.toContain("Today's lesson plan");
+  });
+
+  it("lets complete beginners hear their native language and children play", () => {
+    const text = buildTutorInstructions(
+      { ...profile, cefr_level: "A0", for_child: true },
+      { plan: emptyPlan, maxMinutes: 15 },
+    );
+    expect(text).toContain("complete beginner");
+    expect(text).toContain("use it for instructions, translations and encouragement");
+    expect(text).toContain("The learner is a child");
   });
 });
