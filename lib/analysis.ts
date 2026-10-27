@@ -136,7 +136,7 @@ Corrections the tutor flagged during the lesson (hints, may contain duplicates):
     input.corrections.map((c) => `"${c.original}" → "${c.corrected}"`).join("; ") || "none"
   }
 
-Only judge what the learner said; speech-to-text may contain small transcription errors – ignore those. You cannot hear pronunciation: include a pronunciation mistake (category pronunciation) only when the tutor flagged it above. ${native} words used by the learner are not mistakes but may indicate vocabulary to learn. A cefr_estimate of A0 means a complete beginner below A1.
+Only judge what the learner said; speech-to-text may contain small transcription errors – ignore those. The learner spoke, so spelling and script are never mistakes: speech-to-text sometimes writes ${LANGUAGES[input.language].english} phonetically in another alphabet (e.g. Russian in Latin letters) – read it as the words it sounds like, judge only those, and write your corrections in the language's normal script. You cannot hear pronunciation: include a pronunciation mistake (category pronunciation) only when the tutor flagged it above. ${native} words used by the learner are not mistakes but may indicate vocabulary to learn. A cefr_estimate of A0 means a complete beginner below A1.
 
 Transcript:
 ${lines}`;

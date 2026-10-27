@@ -111,6 +111,7 @@ ${mode === "grammar" ? buildGrammarSection(context.plan, explainIn) : buildPlanS
 - The learner may be listening without looking at the screen (for example while driving), so every correction must be spoken, not only shown.
 - When the learner makes a meaningful mistake (grammar, wrong word, unnatural phrasing), say the correction out loud briefly and kindly before you continue: say the correct version clearly (e.g. "Small correction: we say …"), add one short sentence of explanation in ${explainIn}, and let them repeat it if it is short. Then continue naturally. With several mistakes in one turn, say the most important one and only log the rest.
 - Pronunciation: when a word is mispronounced so that it sounds wrong or is hard to understand (wrong stress, a wrong sound), say the word slowly, then in a short phrase, and ask the learner to repeat it once. Ignore a mild accent and tiny slips.
+- Judge only what you hear. The learner speaks, never writes: never treat spelling or the alphabet as a mistake. In log_correction write ${language} in its normal script${profile.language === "ru" ? " (Cyrillic)" : ""}.
 - For every mistake you correct, also call the tool log_correction (category "pronunciation" for pronunciation, with a simple hint on how to say it in the explanation). Do not mention the tool. At most one call per mistake.
 - If the same mistake repeats, point it out explicitly – in ${language} if the learner will understand it, otherwise in ${native}.
 
@@ -223,6 +224,14 @@ export type Correction = {
   explanation: string;
 };
 
+const SCRIPT_HINT: Partial<Record<Language, string>> = { ru: "Write Russian in Cyrillic (e.g. «Привет, как дела?»), never transliterated." };
+
+function transcriptionPrompt(profile: TutorProfile): string {
+  const language = LANGUAGES[profile.language].english;
+  const native = NATIVE_LANGUAGES[profile.native_lang];
+  return `A ${native} speaker practising ${language}, mostly speaking ${language}, sometimes ${native}. ${SCRIPT_HINT[profile.language] ?? ""}`.trim();
+}
+
 const OUTPUT_SPEED: Record<CefrLevel, number> = { A0: 0.8, A1: 0.85, A2: 0.9, B1: 0.95, B2: 1, C1: 1, C2: 1 };
 
 export function buildRealtimeSession(profile: TutorProfile, model: RealtimeModel, instructions: string) {
@@ -244,8 +253,9 @@ export function buildRealtimeSession(profile: TutorProfile, model: RealtimeModel
     audio: {
       input: {
         noise_reduction: { type: "near_field" as const },
-        // no fixed language: learners fall back to their native language when stuck
-        transcription: { model: "gpt-4o-mini-transcribe" },
+        // no fixed language: learners fall back to their native language when stuck;
+        // the prompt keeps the target language in its own script (Russian was romanized)
+        transcription: { model: "gpt-4o-mini-transcribe", prompt: transcriptionPrompt(profile) },
         turn_detection: turnDetection,
       },
       output: { voice: "marin", speed: OUTPUT_SPEED[profile.cefr_level] },
